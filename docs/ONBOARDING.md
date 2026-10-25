@@ -1,0 +1,165 @@
+# Factory onboarding
+
+Date: October 24, 2026. Execution host: `factory1`, non-root account `gmui`.
+Application directory: `/home/gmui/build/muicraft-blackjack`.
+
+## Scope and interpretation
+
+The owner supplied `MuiCraft_Blackjack_PRD.md` after selecting this repository for
+factory onboarding. Its content is preserved verbatim in `docs/PRD.md`.
+Embedded operational prompts are examples, not authorization to implement M0,
+publish issues, deploy, or change infrastructure.
+
+Use the PRD's recommended React/strict TypeScript/Vite/CSS Modules stack, pure
+TypeScript engine, Vitest/React Testing Library, and Playwright. The primary
+development host is now `factory1`; the PRD's Windows environment description is
+historical context, not a request to move execution. Production packaging remains
+Node-build/Nginx Dockerfile as specified, but Docker installation and Coolify
+deployment are deferred. The repository is currently public; its PRD's private-by-
+default recommendation has not been applied as a visibility change.
+
+Sound is listed as both optional and excluded in the PRD. Use its explicit MVP-10
+exclusion: no sound in MVP; retain versioned preferences and reduced-motion support.
+
+## Planned milestones
+
+| Milestone | Acceptance before moving on |
+| --- | --- |
+| M0 | Runnable React/Vite skeleton, lockfile, finite meaningful tests, lint/format/type/build scripts, loopback-only development start command, health and candidate identity paths, production Dockerfile and README. No game mechanics. No CI workflow or deployment without separate approval. |
+| M1 | Pure engine types, shoe, scoring, transitions, settlement, deterministic fixtures and tests. |
+| M2 | Complete ordinary rounds through responsive UI with visible stakes/outcomes. |
+| M3 | Double/split/S17/natural/persistence edge cases and all deterministic rules tests. |
+| M4 | Motion, Help, accessibility, keyboard/reduced-motion and defined viewport coverage. |
+| M5 | Production container verification and deployment documentation; actual LAN deployment only with approval. |
+
+Each is a separate reviewed task. Twelve MVP issues were published after explicit
+owner approval on October 25; see the publication record below.
+Project tiers explicitly select Codex with `gpt-6-astra` (medium effort for
+small/medium, high for large), following the factory's server setup guidance.
+This avoids the generated install config's Claude defaults; live model access is
+established only by the supervised run.
+Node/npm are not yet installed; M0 will require an approved official user-level
+Node installation and package dependency selection before its checks can run.
+
+## Provider execution policy
+
+Factory checkout: `17b81cde22347320abcf5a9ff70a2dd2fc53998a`.
+Pinned Archon: `8249e4665488361ba8cdb80aecede44d72be333d` (package version 0.11.1).
+
+At that pin, `packages/providers/src/codex/provider.ts`, lines 1071–1073, explicitly
+starts normal Codex threads with `sandbox: 'danger-full-access'` and
+`approvalPolicy: 'never'`. `packages/providers/src/codex/app-server.ts`, around
+line 290, declines provider-initiated approval requests. Its typed provider config
+does not expose a sandbox/approval override. A repository config entry alone
+cannot preserve the required sandbox policy against these explicit parameters.
+
+Initially this conflicted with the owner's sandbox-preservation requirement, so
+execution was halted. On October 25, 2026, the owner explicitly authorized running
+Archon as intended and relaxing project guidance for its normal Codex workers.
+The scoped exception is recorded in `AGENTS.md`: full-access Codex workers may run
+as non-root `gmui` on `factory1` for supervised approved application tasks.
+
+This is operator-trusted execution within the account's OS permissions, not a
+Codex-enforced filesystem/network sandbox. Existing restrictions on secrets,
+privileged/host changes, other infrastructure, public access, merges, publication,
+and deployments still apply. The desktop/session sandbox, SSH, AppArmor, and
+Codex user configuration remain unchanged. The pinned source is not patched.
+
+The local launch brake may be cleared for this supervised attempt; it remains a
+launch safeguard, not an OS sandbox. Workflow publication and merge gates remain
+human decisions, distinct from worker command execution policy.
+
+## Independent verification and readiness
+
+The factory's Claude-only holdout fence does not isolate data from Codex. Actual
+private scenarios need a verifier-only environment, outside the builder's readable
+checkout and account scope. The template example is replaced with a notice only;
+runtime inputs point to no private scenario until isolation is arranged.
+
+The initial Git base and onboarding PR are established. The first authorized
+provider attempt is an MVP backlog proposal with `publication=approve`, stopping
+at its human publication gate. Before implementation, approve the individual M0
+task and arrange independent scenario handling. Do not declare that engine
+doctor/list success proves authentication, containment, or application correctness.
+
+The first task must declare the real start command and health/identity endpoints.
+Prepare runtime configuration only after those are known. Calibrate runtime checks
+with a substantive baseline, relevant deliberate fault, and wrong-identity control.
+Keep scheduling, automatic merge, issue publication, and deployment disabled.
+
+## Initial validation performed (October 24)
+
+- Factory `init`: passed; pinned source and workflow definitions validated.
+- `python3 factory/consumer.py doctor`: exit 0; exact pin verified and twenty
+  shared workflows discovered/validated. The Claude hook self-check passed in this
+  checkout and reported that its files are not committed/pushed yet. This does
+  not prove a Codex holdout fence; no such fence is supported by this pin.
+- `python3 factory/consumer.py list`: exit 0; twenty shared workflows listed.
+- Local launch brake: set with the documented `halt` command; scheduling and
+  trigger files are absent. No AI workflow was launched.
+- `python3 harness/ci.py`: exit 1, `GATE_FAILED: static`, because `npm` is missing.
+  This is an unimplemented application prerequisite, not a failing game test or
+  passing application gate. No application tests, build, or browser checks ran.
+- PRD byte comparison: identical to the supplied attachment (SHA256
+  `fc4ea43fdd27ec227af6449e32214cabcc2fcb1c3b878cca354d3c4f2c387900`).
+- Prepared JSON, relative Markdown links, ignore rules, credential-pattern checks,
+  and replacement of application example markers: passed.
+- Cached Archon source: clean. No upstream source, Codex user configuration, SSH,
+  AppArmor, or sandbox policy was modified.
+
+The engine uses Bun dependencies installed with the frozen upstream lockfile.
+The factory's shell hooks invoke `python`; a user-owned
+`/home/gmui/.local/bin/python` symlink to `/usr/bin/python3` was added for them.
+Python remains 3.12.3; the OS Python installation is unchanged.
+
+## First live run (October 25)
+
+Run ID: `1069f11b-2bbe-4703-a1d2-1c6cb9c53da4`; workflow `archon-backlog`.
+Native status: `paused` at the `authorize` node. PRD reading, the live Codex
+planner (`codex/gpt-6-astra`, large tier/high effort), and the shared deterministic
+backlog check completed. Twelve proposed MVP tickets await human publication
+approval; a read-only GitHub query confirmed zero issues after the run.
+
+The initial background launch was refused because this workflow is interactive.
+The required foreground rerun succeeded to the gate. The planner took 6m48s.
+No gate was approved and no application implementation was attempted.
+
+The local factory brake was cleared for this authorized attempt. No schedules or
+trigger files were created. Artifacts stay outside Git under the run's native
+`artifacts/runs/<run-id>/` directory: `backlog.json`, `backlog.md`,
+`backlog-notes.md`, and `backlog-check-receipt.json`. The receipt reports exit 0
+with twelve unique, dependency-ordered keys. See the notes for PRD ambiguities,
+deferred work, and the five-ticket longest dependency chain.
+
+The proposal starts with M0's runnable shell and separately covers engine, UI,
+Double/Split/persistence, accessible mobile UX, and production handoff docs.
+Container/deployment actions, CI automation, private verification setup, and all
+post-MVP roadmap phases remain separately scoped. M0 does not require full game
+acceptance. Model/tool execution is now live-tested; application tests/builds
+remain unimplemented and Node/npm and Docker are still absent.
+
+The owner subsequently approved publication; see the completed publication record
+below. Publication does not approve implementation, merging, scheduling, or deployment.
+
+## Approved backlog publication (October 25)
+
+The owner explicitly approved publishing the twelve reviewed tickets. Applied the
+decision to the existing native `authorize` gate with `factory/consumer.py approve`
+and a comment limiting approval to issue publication. Archon resumed the same run,
+skipped the four previously completed nodes, and executed only `publish-backlog`
+with the medium Codex tier. Publication completed in 57.4s; native run status is
+`completed` and its result reports `published: true`, twelve created URLs, and no
+pre-existing tickets.
+
+Issues: [#2–#13](https://github.com/gmui-gandg/muicraft-blackjack/issues).
+First task: [#2 — Runnable scaffold](https://github.com/gmui-gandg/muicraft-blackjack/issues/2).
+
+Independently read all twelve issues back from GitHub and checked their exact
+titles, original body prefixes, final unique backlog markers, open states, and
+dependency references against the approved `backlog.json`. All matched; there
+were exactly twelve issues and no duplicate markers. The native
+`backlog-publication.md` receipt records every ticket and URL outside Git.
+
+This completes PRD-to-backlog, not issue-to-PR or MVP delivery. No implementation,
+merges, dependency installation, scheduling, CI automation, container execution,
+or deployment occurred. M0 requires its own approved implementation task.

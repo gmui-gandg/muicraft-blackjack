@@ -1,0 +1,5 @@
+{
+  "description": "Not configured: add calibrated defects against real application source after implementation. An empty list is not mutation coverage.",
+  "copy": [],
+  "defects": []
+}
