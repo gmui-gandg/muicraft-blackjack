@@ -7,8 +7,9 @@ Do not copy workflows into this application or edit the cached engine.
 ## Current status
 
 PRD intake, engine installation, and approved backlog publication are complete.
-Application implementation, CI automation, and deployment remain pending. See
-`docs/ONBOARDING.md` for verified results and live-run status.
+The M0 scaffold provides the application shell and local checks. Gameplay, CI
+automation, and deployment remain pending. See README.md for current setup and
+validation, and `docs/ONBOARDING.md` for historical onboarding results.
 
 The owner authorized normal pinned Archon Codex workers on 2026-10-25. The local
 launch brake may be cleared for the supervised backlog attempt. Scheduling must
@@ -18,12 +19,13 @@ engine checks as evidence of a live model run or working application.
 Live run `1069f11b-2bbe-4703-a1d2-1c6cb9c53da4` completed after explicit owner
 approval of its publication gate. Twelve tickets were published as GitHub issues
 #2–#13 and independently verified for exact bodies, markers, and dependencies.
-Codex execution is verified; no application milestone has run.
+Codex execution is verified. M0 delivery and independent review are tracked in
+https://github.com/gmui-gandg/muicraft-blackjack/pull/14.
 
 ## Validation
 
-Ordinary project checks: `python3 harness/ci.py`; the configured npm commands will
-fail until M0 supplies Node/npm, package scripts, dependencies, and tests.
+Ordinary project checks: `python3 harness/ci.py`; install the scaffold prerequisites
+and dependencies described in README.md before running it.
 Runtime verification is a separate shared workflow with private operator-owned
 configuration. Follow `factory/RUNTIME_HOST.md` after a start command and candidate
 identity endpoint exist; do not point it at an unrelated checkout.
