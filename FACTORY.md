@@ -6,8 +6,8 @@ Do not copy workflows into this application or edit the cached engine.
 
 ## Current status
 
-PRD intake and engine installation are onboarding work. Application implementation,
-issue publication, CI automation, and deployment remain pending. See
+PRD intake, engine installation, and approved backlog publication are complete.
+Application implementation, CI automation, and deployment remain pending. See
 `docs/ONBOARDING.md` for verified results and live-run status.
 
 The owner authorized normal pinned Archon Codex workers on 2026-10-25. The local
@@ -15,9 +15,10 @@ launch brake may be cleared for the supervised backlog attempt. Scheduling must
 remain absent. Record the run ID and result in `docs/ONBOARDING.md`; do not treat
 engine checks as evidence of a live model run or working application.
 
-Live run `1069f11b-2bbe-4703-a1d2-1c6cb9c53da4` reached `authorize` with twelve
-checked proposals and is paused for publication approval. Codex execution is
-verified; no issues have been published and no application milestone has run.
+Live run `1069f11b-2bbe-4703-a1d2-1c6cb9c53da4` completed after explicit owner
+approval of its publication gate. Twelve tickets were published as GitHub issues
+#2–#13 and independently verified for exact bodies, markers, and dependencies.
+Codex execution is verified; no application milestone has run.
 
 ## Validation
 
@@ -35,10 +36,10 @@ a notice, with no test scenarios.
 
 ## First supervised run
 
-Prepare the MVP backlog through `archon-backlog` with `publication=approve`.
-Stop at its human publication gate without approving it. Scope the input to MVP;
-defer roadmap phases and actual infrastructure/deployment actions. The subsequent
-implementation task, once approved, starts with M0 only:
+The MVP backlog was prepared through `archon-backlog` with `publication=approve`
+and published only after the owner approved the native gate. Roadmap phases and
+actual infrastructure/deployment actions remain deferred. The subsequent
+implementation task, once approved, starts with issue #2 / M0 only:
 a runnable skeleton, exact local start command, health and candidate identity
 endpoints, tests, and production packaging. Keep merge approval mandatory and
 discovery publication in preview. Do not publish the backlog, merge, schedule, or

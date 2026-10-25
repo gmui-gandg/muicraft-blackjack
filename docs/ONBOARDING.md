@@ -32,7 +32,8 @@ exclusion: no sound in MVP; retain versioned preferences and reduced-motion supp
 | M4 | Motion, Help, accessibility, keyboard/reduced-motion and defined viewport coverage. |
 | M5 | Production container verification and deployment documentation; actual LAN deployment only with approval. |
 
-Each is a separate reviewed task. No backlog or issues have been published.
+Each is a separate reviewed task. Twelve MVP issues were published after explicit
+owner approval on October 25; see the publication record below.
 Project tiers explicitly select Codex with `gpt-6-astra` (medium effort for
 small/medium, high for large), following the factory's server setup guidance.
 This avoids the generated install config's Claude defaults; live model access is
@@ -137,5 +138,28 @@ post-MVP roadmap phases remain separately scoped. M0 does not require full game
 acceptance. Model/tool execution is now live-tested; application tests/builds
 remain unimplemented and Node/npm and Docker are still absent.
 
-Before further work, the owner decides whether to publish the proposed issues.
-Publication does not approve implementation, merging, scheduling, or deployment.
+The owner subsequently approved publication; see the completed publication record
+below. Publication does not approve implementation, merging, scheduling, or deployment.
+
+## Approved backlog publication (October 25)
+
+The owner explicitly approved publishing the twelve reviewed tickets. Applied the
+decision to the existing native `authorize` gate with `factory/consumer.py approve`
+and a comment limiting approval to issue publication. Archon resumed the same run,
+skipped the four previously completed nodes, and executed only `publish-backlog`
+with the medium Codex tier. Publication completed in 57.4s; native run status is
+`completed` and its result reports `published: true`, twelve created URLs, and no
+pre-existing tickets.
+
+Issues: [#2–#13](https://github.com/gmui-gandg/muicraft-blackjack/issues).
+First task: [#2 — Runnable scaffold](https://github.com/gmui-gandg/muicraft-blackjack/issues/2).
+
+Independently read all twelve issues back from GitHub and checked their exact
+titles, original body prefixes, final unique backlog markers, open states, and
+dependency references against the approved `backlog.json`. All matched; there
+were exactly twelve issues and no duplicate markers. The native
+`backlog-publication.md` receipt records every ticket and URL outside Git.
+
+This completes PRD-to-backlog, not issue-to-PR or MVP delivery. No implementation,
+merges, dependency installation, scheduling, CI automation, container execution,
+or deployment occurred. M0 requires its own approved implementation task.
