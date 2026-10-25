@@ -40,9 +40,8 @@ a notice, with no test scenarios.
 
 The MVP backlog was prepared through `archon-backlog` with `publication=approve`
 and published only after the owner approved the native gate. Roadmap phases and
-actual infrastructure/deployment actions remain deferred. The subsequent
-implementation task, once approved, starts with issue #2 / M0 only:
-a runnable skeleton, exact local start command, health and candidate identity
-endpoints, tests, and production packaging. Keep merge approval mandatory and
+actual infrastructure/deployment actions remain deferred. Issue #2 / M0 now provides
+the scaffold and production packaging source; current delivery and review status
+are tracked in PR #14. Keep merge approval mandatory and
 discovery publication in preview. Do not publish the backlog, merge, schedule, or
 deploy without further authorization.
