@@ -16,6 +16,15 @@ test('documented startup argv matches the real launcher', async () => {
   const documented = readme.match(/```json\n([\s\S]*?)\n```/)?.[1];
   expect(documented).toBeDefined();
   expect(JSON.parse(documented ?? '')).toEqual(['node', ...viteArgv('{port}')]);
+  const shellExamples = [...readme.matchAll(/```bash\n([\s\S]*?)\n```/g)].map(
+    (match) => match[1],
+  );
+  expect(shellExamples).toContain(['node', ...viteArgv('5173')].join(' '));
+  expect(shellExamples).toContain('npm ci\nnpm run dev -- --port 5173');
+  const manifest = JSON.parse(
+    await readFile(join(projectRoot, 'package.json'), 'utf8'),
+  );
+  expect(manifest.scripts.dev).toBe('vite --host 127.0.0.1 --strictPort');
 });
 
 test('removes its fallback cache on normal shutdown without caller state', async () => {
