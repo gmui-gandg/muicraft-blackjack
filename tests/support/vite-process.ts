@@ -46,17 +46,33 @@ export async function reservePort() {
   };
 }
 
-export function runtimeEnv(candidate: string | undefined, state: string) {
+export function runtimeEnv(candidate: string | undefined, state?: string) {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    FACTORY_RUNTIME_STATE: state,
   };
+  delete env.FACTORY_RUNTIME_STATE;
+  if (state !== undefined) env.FACTORY_RUNTIME_STATE = state;
   delete env.FACTORY_RUNTIME_CANDIDATE;
   if (candidate !== undefined) env.FACTORY_RUNTIME_CANDIDATE = candidate;
   return env;
 }
 
-export async function launchVite(candidate?: string, occupiedPort?: number) {
+export function viteArgv(port: string) {
+  return [
+    'node_modules/vite/bin/vite.js',
+    '--host',
+    '127.0.0.1',
+    '--port',
+    port,
+    '--strictPort',
+  ];
+}
+
+export async function launchVite(
+  candidate?: string,
+  occupiedPort?: number,
+  fallbackState = false,
+) {
   const state = await mkdtemp(join(tmpdir(), 'muicraft-test-'));
   let port = occupiedPort;
   if (port === undefined) {
@@ -64,17 +80,11 @@ export async function launchVite(candidate?: string, occupiedPort?: number) {
     port = reservation.port;
     await reservation.close();
   }
-  const argv = [
-    'node_modules/vite/bin/vite.js',
-    '--host',
-    '127.0.0.1',
-    '--port',
-    String(port),
-    '--strictPort',
-  ];
-  const child = spawn(process.execPath, argv, {
+  const env = runtimeEnv(candidate, fallbackState ? undefined : state);
+  if (fallbackState) env.TMPDIR = state;
+  const child = spawn(process.execPath, viteArgv(String(port)), {
     cwd: projectRoot,
-    env: runtimeEnv(candidate, state),
+    env,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
@@ -93,6 +103,17 @@ export async function launchVite(candidate?: string, occupiedPort?: number) {
     });
   });
   const baseURL = `http://127.0.0.1:${port}`;
+  async function shutdown() {
+    if (!closed) {
+      child.kill('SIGTERM');
+      try {
+        await within(exited, 5_000);
+      } catch {
+        child.kill('SIGKILL');
+        await within(exited, 5_000);
+      }
+    }
+  }
   return {
     state,
     port,
@@ -100,6 +121,7 @@ export async function launchVite(candidate?: string, occupiedPort?: number) {
     pid: child.pid,
     exited,
     output: () => output,
+    shutdown,
     async ready() {
       const deadline = Date.now() + 15_000;
       while (Date.now() < deadline) {
@@ -119,15 +141,7 @@ export async function launchVite(candidate?: string, occupiedPort?: number) {
       throw new Error(`Vite readiness timed out: ${output}`);
     },
     async stop() {
-      if (!closed) {
-        child.kill('SIGTERM');
-        try {
-          await within(exited, 5_000);
-        } catch {
-          child.kill('SIGKILL');
-          await within(exited, 5_000);
-        }
-      }
+      await shutdown();
       await rm(state, { recursive: true, force: true });
       console.info(
         `Vite pid=${child.pid} closed=${closed}; removed state=${state}`,

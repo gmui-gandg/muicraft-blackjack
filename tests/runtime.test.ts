@@ -1,14 +1,48 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { expect, test } from 'vitest';
 import {
   launchVite,
   projectRoot,
   reservePort,
+  viteArgv,
   within,
 } from './support/vite-process.js';
+
+test('documented startup argv matches the real launcher', async () => {
+  const readme = await readFile(join(projectRoot, 'README.md'), 'utf8');
+  const documented = readme.match(/```json\n([\s\S]*?)\n```/)?.[1];
+  expect(documented).toBeDefined();
+  expect(JSON.parse(documented ?? '')).toEqual(['node', ...viteArgv('{port}')]);
+});
+
+test('removes its fallback cache on normal shutdown without caller state', async () => {
+  const server = await launchVite('fallback-cleanup', undefined, true);
+  try {
+    await server.ready();
+    await probe(server.baseURL, '/src/main.tsx');
+    const entries = (await readdir(server.state)).filter((name) =>
+      name.startsWith('muicraft-vite-'),
+    );
+    expect(entries).toHaveLength(1);
+    const fallback = entries[0];
+    expect(fallback).toMatch(/^muicraft-vite-/);
+    const ownedState = join(server.state, fallback ?? '');
+    expect(await readdir(ownedState)).toContain('vite');
+    await server.shutdown();
+    await expect(stat(ownedState)).rejects.toMatchObject({ code: 'ENOENT' });
+    console.info(
+      `Fallback cache ${ownedState} removed by Vite before helper cleanup`,
+    );
+    const pid = server.pid;
+    if (pid === undefined) throw new Error('Missing owned Vite PID');
+    expect(() => process.kill(pid, 0)).toThrow();
+  } finally {
+    await server.stop();
+  }
+});
 
 async function probe(baseURL: string, path: string) {
   const response = await fetch(`${baseURL}${path}`, {

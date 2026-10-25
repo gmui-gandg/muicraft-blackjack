@@ -1,12 +1,15 @@
 import { execFile, execFileSync } from 'node:child_process';
 import { cp, mkdtemp, readFile, rm, stat, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { createRequire } from 'node:module';
 import { join, matchesGlob } from 'node:path';
 import { promisify } from 'node:util';
+import { runInNewContext } from 'node:vm';
 import { expect, test } from 'vitest';
 import { projectRoot, runtimeEnv } from './support/vite-process.js';
 
 const execute = promisify(execFile);
+const require = createRequire(import.meta.url);
 const sourceFiles = [
   'package.json',
   'package-lock.json',
@@ -107,16 +110,49 @@ test('production configuration wires the built artifact and excludes private con
   );
   const validation = docker.match(/^RUN node -e '(.+)'$/m)?.[1];
   if (!validation) throw new Error('Missing source-commit validation');
-  for (const candidate of ['', 'abc123', 'g'.repeat(40)]) {
-    await expect(
-      execute(process.execPath, ['-e', validation], {
-        env: { ...process.env, SOURCE_COMMIT: candidate },
-      }),
-    ).rejects.toThrow(/SOURCE_COMMIT must be the full source Git commit/);
+  const viteConfig = await readFile(
+    join(projectRoot, 'vite.config.cjs'),
+    'utf8',
+  );
+  for (const [candidate, accepted] of [
+    ['', false],
+    ['abc123', false],
+    ['a'.repeat(39), false],
+    ['a'.repeat(41), false],
+    ['g'.repeat(40), false],
+    ['A'.repeat(40), false],
+    ['0'.repeat(40), true],
+    ['abcdef0123456789'.repeat(2) + 'abcdef01', true],
+  ] as const) {
+    const dockerResult = await execute(process.execPath, ['-e', validation], {
+      env: { ...process.env, SOURCE_COMMIT: candidate },
+    }).then(
+      () => true,
+      () => false,
+    );
+    let viteResult = false;
+    try {
+      const identity: unknown = runInNewContext(
+        `${viteConfig}\nsourceIdentity()`,
+        {
+          require: (name: string) =>
+            name === 'node:child_process'
+              ? { execFileSync: () => `${candidate}\n` }
+              : require(name),
+          process: { env: {} },
+          module: { exports: {} },
+          __dirname: projectRoot,
+        },
+      );
+      viteResult = identity === candidate;
+    } catch {
+      viteResult = false;
+    }
+    expect({ dockerResult, viteResult }, JSON.stringify(candidate)).toEqual({
+      dockerResult: accepted,
+      viteResult: accepted,
+    });
   }
-  await execute(process.execPath, ['-e', validation], {
-    env: { ...process.env, SOURCE_COMMIT: 'a'.repeat(40) },
-  });
   const runtime = docker.split('FROM nginx:1.30.6-alpine AS runtime')[1];
   expect(runtime).toBeDefined();
   expect(runtime).toContain('COPY nginx.conf /etc/nginx/conf.d/default.conf');
