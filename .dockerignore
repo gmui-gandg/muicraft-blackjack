@@ -1,0 +1,10 @@
+**
+!package.json
+!package-lock.json
+!index.html
+!vite.config.cjs
+!tsconfig.json
+!tsconfig.node.json
+!src/
+!src/**
+!nginx.conf
