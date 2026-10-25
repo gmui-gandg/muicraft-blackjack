@@ -1,0 +1,3 @@
+# Project provider selection. Preserve native user authentication/configuration.
+# No explicit model tiers until provider safety and account access are validated.
+assistant: codex

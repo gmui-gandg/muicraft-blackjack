@@ -1,0 +1,2 @@
+# Preserve the supplied PRD's Markdown two-space hard line breaks.
+docs/PRD.md whitespace=-blank-at-eol

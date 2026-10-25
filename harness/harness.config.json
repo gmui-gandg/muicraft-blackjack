@@ -1,0 +1,8 @@
+{
+  "static": "npm run check",
+  "unit": "npm run test",
+  "unit_count_pattern": "Tests\\s+(\\d+) passed",
+  "required_checks": "",
+  "protected_paths": "AGENTS.md,engineering.md,MISSION.md,FACTORY.md,FACTORY_RULES.md,docs/PRD.md,.archon/config.yaml,harness/**,.factory/**,factory/**,.claude/**,.ignore",
+  "description": "Planned M0 commands. npm run check must run lint, format:check, typecheck, and build; npm run test must run Vitest once and report nonzero tests. These commands are intentionally unavailable until M0, not passing checks. GitHub CI configuration is not authorized; required_checks remains undecided until a reviewed delivery policy exists. Runtime/holdout verification is separate."
+}
