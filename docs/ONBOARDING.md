@@ -86,7 +86,7 @@ Prepare runtime configuration only after those are known. Calibrate runtime chec
 with a substantive baseline, relevant deliberate fault, and wrong-identity control.
 Keep scheduling, automatic merge, issue publication, and deployment disabled.
 
-## Validation performed
+## Initial validation performed (October 24)
 
 - Factory `init`: passed; pinned source and workflow definitions validated.
 - `python3 factory/consumer.py doctor`: exit 0; exact pin verified and twenty
@@ -110,3 +110,32 @@ The engine uses Bun dependencies installed with the frozen upstream lockfile.
 The factory's shell hooks invoke `python`; a user-owned
 `/home/gmui/.local/bin/python` symlink to `/usr/bin/python3` was added for them.
 Python remains 3.12.3; the OS Python installation is unchanged.
+
+## First live run (October 25)
+
+Run ID: `1069f11b-2bbe-4703-a1d2-1c6cb9c53da4`; workflow `archon-backlog`.
+Native status: `paused` at the `authorize` node. PRD reading, the live Codex
+planner (`codex/gpt-6-astra`, large tier/high effort), and the shared deterministic
+backlog check completed. Twelve proposed MVP tickets await human publication
+approval; a read-only GitHub query confirmed zero issues after the run.
+
+The initial background launch was refused because this workflow is interactive.
+The required foreground rerun succeeded to the gate. The planner took 6m48s.
+No gate was approved and no application implementation was attempted.
+
+The local factory brake was cleared for this authorized attempt. No schedules or
+trigger files were created. Artifacts stay outside Git under the run's native
+`artifacts/runs/<run-id>/` directory: `backlog.json`, `backlog.md`,
+`backlog-notes.md`, and `backlog-check-receipt.json`. The receipt reports exit 0
+with twelve unique, dependency-ordered keys. See the notes for PRD ambiguities,
+deferred work, and the five-ticket longest dependency chain.
+
+The proposal starts with M0's runnable shell and separately covers engine, UI,
+Double/Split/persistence, accessible mobile UX, and production handoff docs.
+Container/deployment actions, CI automation, private verification setup, and all
+post-MVP roadmap phases remain separately scoped. M0 does not require full game
+acceptance. Model/tool execution is now live-tested; application tests/builds
+remain unimplemented and Node/npm and Docker are still absent.
+
+Before further work, the owner decides whether to publish the proposed issues.
+Publication does not approve implementation, merging, scheduling, or deployment.

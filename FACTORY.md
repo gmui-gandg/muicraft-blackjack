@@ -15,6 +15,10 @@ launch brake may be cleared for the supervised backlog attempt. Scheduling must
 remain absent. Record the run ID and result in `docs/ONBOARDING.md`; do not treat
 engine checks as evidence of a live model run or working application.
 
+Live run `1069f11b-2bbe-4703-a1d2-1c6cb9c53da4` reached `authorize` with twelve
+checked proposals and is paused for publication approval. Codex execution is
+verified; no issues have been published and no application milestone has run.
+
 ## Validation
 
 Ordinary project checks: `python3 harness/ci.py`; the configured npm commands will
