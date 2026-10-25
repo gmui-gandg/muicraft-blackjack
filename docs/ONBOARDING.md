@@ -33,10 +33,14 @@ exclusion: no sound in MVP; retain versioned preferences and reduced-motion supp
 | M5 | Production container verification and deployment documentation; actual LAN deployment only with approval. |
 
 Each is a separate reviewed task. No backlog or issues have been published.
+Project tiers explicitly select Codex with `gpt-6-astra` (medium effort for
+small/medium, high for large), following the factory's server setup guidance.
+This avoids the generated install config's Claude defaults; live model access is
+established only by the supervised run.
 Node/npm are not yet installed; M0 will require an approved official user-level
 Node installation and package dependency selection before its checks can run.
 
-## Provider compatibility blocker
+## Provider execution policy
 
 Factory checkout: `17b81cde22347320abcf5a9ff70a2dd2fc53998a`.
 Pinned Archon: `8249e4665488361ba8cdb80aecede44d72be333d` (package version 0.11.1).
@@ -48,15 +52,21 @@ line 290, declines provider-initiated approval requests. Its typed provider conf
 does not expose a sandbox/approval override. A repository config entry alone
 cannot preserve the required sandbox policy against these explicit parameters.
 
-This conflicts with the owner's instruction to preserve Codex sandbox controls.
-No provider workflow or live AI call will be executed in this state. The local
-factory launch brake must remain set; it is a launch safeguard, not an OS sandbox.
-The pinned source has not been patched and Codex user configuration is unchanged.
+Initially this conflicted with the owner's sandbox-preservation requirement, so
+execution was halted. On October 25, 2026, the owner explicitly authorized running
+Archon as intended and relaxing project guidance for its normal Codex workers.
+The scoped exception is recorded in `AGENTS.md`: full-access Codex workers may run
+as non-root `gmui` on `factory1` for supervised approved application tasks.
 
-The safe next step is a reviewed upstream-compatible change that supports the
-desired sandbox policy, with a separate explicit revision and tests if needed.
-Do not silently patch the immutable cache, weaken AppArmor, or replace the pin.
-Workflow merge approval does not substitute for tool execution approvals.
+This is operator-trusted execution within the account's OS permissions, not a
+Codex-enforced filesystem/network sandbox. Existing restrictions on secrets,
+privileged/host changes, other infrastructure, public access, merges, publication,
+and deployments still apply. The desktop/session sandbox, SSH, AppArmor, and
+Codex user configuration remain unchanged. The pinned source is not patched.
+
+The local launch brake may be cleared for this supervised attempt; it remains a
+launch safeguard, not an OS sandbox. Workflow publication and merge gates remain
+human decisions, distinct from worker command execution policy.
 
 ## Independent verification and readiness
 
@@ -65,10 +75,11 @@ private scenarios need a verifier-only environment, outside the builder's readab
 checkout and account scope. The template example is replaced with a notice only;
 runtime inputs point to no private scenario until isolation is arranged.
 
-Before the first run: review this interpretation and mission, establish the initial
-Git base, resolve provider safety, validate model/account access, approve M0's task,
-and arrange independent scenario handling. Do not declare that engine doctor/list
-success proves authentication, containment, or application correctness.
+The initial Git base and onboarding PR are established. The first authorized
+provider attempt is an MVP backlog proposal with `publication=approve`, stopping
+at its human publication gate. Before implementation, approve the individual M0
+task and arrange independent scenario handling. Do not declare that engine
+doctor/list success proves authentication, containment, or application correctness.
 
 The first task must declare the real start command and health/identity endpoints.
 Prepare runtime configuration only after those are known. Calibrate runtime checks

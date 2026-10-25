@@ -33,14 +33,19 @@ PRD section 3 and rule profile `classic-six-deck-s17-v1` govern game behavior.
 
 ## Safety and factory operation
 
-- Preserve SSH, AppArmor, and Codex sandbox/approval controls. Do not bypass them
-  or modify pinned Archon source as a workaround.
+- Preserve SSH, AppArmor, host security controls, and the desktop/session sandbox.
+  On 2026-10-25 the owner authorized the unmodified pinned Archon provider's
+  `danger-full-access` / `approvalPolicy: never` Codex workers as non-root `gmui`
+  on `factory1` for supervised approved workflows. Ordinary project commands in
+  those workers need no per-command approval. This does not authorize root,
+  global security changes, or modifications to pinned Archon source.
 - No changes to Coolify, Proxmox, pfSense, DNS, other VMs, firewall, or public access.
   No schedulers, GitHub Actions/webhooks, unattended publication, or deployments.
 - Never commit keys, tokens, local runtime configuration, or authentication caches.
-- Use documented shared Archon SDLC workflows for factory AI work. Do not launch a
-  workflow until the Codex provider compatibility blocker in `docs/ONBOARDING.md`
-  is resolved. Local factory launches are halted meanwhile.
+- Use documented shared Archon SDLC workflows for factory AI work. The initial
+  authorized live attempt may prepare the MVP backlog with `publication=approve`.
+  Stop at the human publication gate. Do not approve publication, implement
+  tickets, merge, deploy, or schedule from this onboarding attempt.
 - Codex has no enforcement from the template's Claude-only holdout hooks. Keep
   actual holdout scenarios outside the repository and builder-readable workspace.
   Do not read or author private scenarios as the builder.

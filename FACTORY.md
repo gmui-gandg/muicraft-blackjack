@@ -6,13 +6,14 @@ Do not copy workflows into this application or edit the cached engine.
 
 ## Current status
 
-PRD intake and engine installation are onboarding work. No application milestone,
-AI workflow, issue publication, CI automation, or deployment is complete.
-See `docs/ONBOARDING.md` for verified results and blockers.
+PRD intake and engine installation are onboarding work. Application implementation,
+issue publication, CI automation, and deployment remain pending. See
+`docs/ONBOARDING.md` for verified results and live-run status.
 
-The local factory launch brake is set. Do not clear it until the owner resolves
-the pinned provider's sandbox/approval conflict. Scheduling must remain absent.
-No successful workflow run IDs or application runtime evidence exist yet.
+The owner authorized normal pinned Archon Codex workers on 2026-10-25. The local
+launch brake may be cleared for the supervised backlog attempt. Scheduling must
+remain absent. Record the run ID and result in `docs/ONBOARDING.md`; do not treat
+engine checks as evidence of a live model run or working application.
 
 ## Validation
 
@@ -28,10 +29,13 @@ outside this repository in a verifier-only environment. The template's Claude
 hooks do not isolate scenarios from Codex. The in-repository holdout file is only
 a notice, with no test scenarios.
 
-## First supervised run, when unblocked
+## First supervised run
 
-The maintainer reviews the PRD interpretation and first task. Start with M0 only:
+Prepare the MVP backlog through `archon-backlog` with `publication=approve`.
+Stop at its human publication gate without approving it. Scope the input to MVP;
+defer roadmap phases and actual infrastructure/deployment actions. The subsequent
+implementation task, once approved, starts with M0 only:
 a runnable skeleton, exact local start command, health and candidate identity
 endpoints, tests, and production packaging. Keep merge approval mandatory and
-discovery publication in preview. Do not publish a backlog, merge, schedule, or
-deploy as part of an unapproved setup diagnostic.
+discovery publication in preview. Do not publish the backlog, merge, schedule, or
+deploy without further authorization.

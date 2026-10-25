@@ -1,3 +1,12 @@
 # Project provider selection. Preserve native user authentication/configuration.
-# No explicit model tiers until provider safety and account access are validated.
+# Bind every tier to Codex; install-level defaults otherwise select Claude.
+# Full-access worker execution is authorized as documented in AGENTS.md.
 assistant: codex
+assistants:
+  codex:
+    model: gpt-6-astra
+    modelReasoningEffort: medium
+tiers:
+  small: { provider: codex, model: gpt-6-astra, effort: medium }
+  medium: { provider: codex, model: gpt-6-astra, effort: medium }
+  large: { provider: codex, model: gpt-6-astra, effort: high }

@@ -24,5 +24,7 @@ python3 factory/consumer.py list
 ```
 
 These commands validate the engine and workflow definitions; they do not run an
-agent or prove the game's behavior. The local launch brake remains set pending
-the provider security review. No schedules, automation, or deployments are enabled.
+agent or prove the game's behavior. The owner authorized the pinned provider's
+normal non-root full-access workers for supervised runs on October 25, 2026.
+The initial live attempt prepares an MVP backlog and stops for publication approval.
+No schedules, automation, merges, or deployments are enabled.
