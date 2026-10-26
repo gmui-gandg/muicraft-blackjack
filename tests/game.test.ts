@@ -12,6 +12,10 @@ import { isNatural, scoreHand } from '../src/game/scoring.js';
 import { Shoe } from '../src/game/shoe.js';
 
 const cards = createCards();
+function identity(card: Card) {
+  return `${card.deck}:${card.suit}:${card.rank}`;
+}
+
 function hand(...ranks: Rank[]) {
   const available = [...cards];
   return ranks.map((rank) => {
@@ -31,15 +35,13 @@ function drain(shoe: Shoe) {
 describe('six-deck cards and settings', () => {
   test('has exactly six of each standard rank/suit and 312 unique identities', () => {
     expect(cards).toHaveLength(312);
-    expect(new Set(cards.map((card) => card.id)).size).toBe(312);
+    expect(new Set(cards.map(identity)).size).toBe(312);
     for (const rank of RANKS) {
       for (const suit of SUITS) {
         const matching = cards.filter(
           (card) => card.rank === rank && card.suit === suit,
         );
         expect(matching.map((card) => card.deck)).toEqual([0, 1, 2, 3, 4, 5]);
-        for (const card of matching)
-          expect(card.id).toBe(`${card.deck}:${suit}:${rank}`);
       }
     }
     expect(CLASSIC_RULES).toEqual({
@@ -112,9 +114,7 @@ describe('unbiased injected randomness', () => {
     expect(shuffled).toEqual([...cards.slice(1), cards[0]]);
     expect(source).toHaveBeenCalledTimes(311);
     expect(shuffled).toEqual(shuffle(cards, () => 0));
-    expect(shuffled.map((card) => card.id).sort()).toEqual(
-      cards.map((card) => card.id).sort(),
-    );
+    expect(shuffled.map(identity).sort()).toEqual(cards.map(identity).sort());
     expect(cards).toEqual(original);
     expect(shuffle(['a', 'b', 'c', 'd'], () => 1)).toEqual([
       'a',
@@ -188,21 +188,10 @@ describe('shoe ownership and round boundaries', () => {
   });
   test('rejects duplicate injected identities', () => {
     const fixture = hand('A');
-    expect(() => new Shoe([...fixture, ...fixture])).toThrow(
-      'duplicate card identities',
-    );
+    expect(
+      () => new Shoe([...fixture, ...fixture.map((card) => ({ ...card }))]),
+    ).toThrow('duplicate card identities');
   });
-  test.each<Card['id']>(['1:clubs:A', '0:hearts:A', '0:clubs:K'])(
-    'rejects injected ID %s that disagrees with physical card fields',
-    (id) => {
-      const card: Card = { deck: 0, suit: 'clubs', rank: 'A', id: '0:clubs:A' };
-      const mismatched: Card = { ...card, id };
-      expect(() => new Shoe([mismatched])).toThrow('card identity must match');
-      expect(() => new Shoe([card, mismatched])).toThrow(
-        'card identity must match',
-      );
-    },
-  );
   test.each([78, 77, 0])(
     'replenishes only at explicit round boundary with %i remaining',
     (remaining) => {
@@ -232,9 +221,7 @@ describe('shoe ownership and round boundaries', () => {
     try {
       const drawn = drain(new Shoe());
       expect(spy).toHaveBeenCalled();
-      expect(drawn.map((card) => card.id).sort()).toEqual(
-        cards.map((card) => card.id).sort(),
-      );
+      expect(drawn.map(identity).sort()).toEqual(cards.map(identity).sort());
     } finally {
       spy.mockRestore();
     }

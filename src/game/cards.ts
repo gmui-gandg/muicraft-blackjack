@@ -23,7 +23,6 @@ export type Card = Readonly<{
   deck: Deck;
   rank: Rank;
   suit: Suit;
-  id: `${Deck}:${Suit}:${Rank}`;
 }>;
 
 export function createCards(): Card[] {
@@ -34,7 +33,6 @@ export function createCards(): Card[] {
           deck,
           suit,
           rank,
-          id: `${deck}:${suit}:${rank}`,
         }),
       ),
     ),

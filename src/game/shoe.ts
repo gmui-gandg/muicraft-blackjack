@@ -6,12 +6,10 @@ export class Shoe {
   #cards: Card[];
 
   constructor(cards: readonly Card[] = shuffle(createCards())) {
-    for (const card of cards) {
-      if (card.id !== `${card.deck}:${card.suit}:${card.rank}`) {
-        throw new Error('A card identity must match its deck, suit, and rank');
-      }
-    }
-    if (new Set(cards.map((card) => card.id)).size !== cards.length) {
+    const identities = cards.map(
+      (card) => `${card.deck}:${card.suit}:${card.rank}`,
+    );
+    if (new Set(identities).size !== cards.length) {
       throw new Error('A shoe cannot contain duplicate card identities');
     }
     this.#cards = [...cards];

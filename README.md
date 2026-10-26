@@ -14,9 +14,9 @@ uses Fisher–Yates with crypto-backed rejection sampling; a `Uint32Source` can
 be injected for deterministic tests.
 
 `new Shoe()` shuffles a fresh six-deck shoe. `new Shoe(cards)` copies a unique
-injected sequence and draws from its front. Injection rejects duplicate identities
-and IDs that disagree with their deck, suit, or rank. `draw()` transfers one card out of
-the shoe, returning `undefined` on exhaustion without reshuffling. The caller
+injected sequence and draws from its front. Injection rejects duplicate deck/suit/rank
+identities. `draw()` transfers one card out of the shoe, returning `undefined` on
+exhaustion without reshuffling. The caller
 must handle exhaustion; it never duplicates or fabricates a card.
 `prepareForRound(source?)` is exclusively a between-round operation: it replaces
 the shoe with a shuffled full six-deck set at 78 or fewer remaining cards and
