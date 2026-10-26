@@ -171,7 +171,7 @@ export function Table({
           className={styles.chips}
           label="Wager chips"
           controls={([10, 50, 100] as const).map((value) => ({
-            ...chips,
+            ...('enabled' in chips ? chips : chips[value]),
             chip: value,
             label: `Add ${value} chips`,
             onActivate: () => onChip(value),

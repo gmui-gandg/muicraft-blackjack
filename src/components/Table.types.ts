@@ -34,7 +34,7 @@ export interface TableProps {
   readonly dealer: HandView;
   readonly players: readonly [HandView] | readonly [HandView, HandView];
   readonly activeHand: 0 | 1 | null;
-  readonly chips: ControlState;
+  readonly chips: ControlState | Readonly<Record<10 | 50 | 100, ControlState>>;
   readonly onChip: (value: 10 | 50 | 100) => void;
   readonly actions: readonly Control[];
 }

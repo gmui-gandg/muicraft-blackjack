@@ -1,18 +1,5 @@
-import { Table } from '../components/Table';
+import { PlayableRound } from './PlayableRound';
 import styles from './App.module.css';
-
-const unavailable = {
-  enabled: false,
-  reason: 'Gameplay is not connected yet.',
-} as const;
-const previewActions = [
-  'Deal',
-  'Hit',
-  'Stand',
-  'Double',
-  'Split',
-  'Next Hand',
-].map((label) => ({ ...unavailable, label, onActivate: () => {} }));
 
 export function App() {
   return (
@@ -34,28 +21,13 @@ export function App() {
           <h1>MuiCraft Blackjack</h1>
         </div>
       </header>
-      <section className={styles.preview} aria-labelledby="preview-title">
-        <h2 id="preview-title">Table preview</h2>
+      <section className={styles.preview} aria-labelledby="play-title">
+        <h2 id="play-title">Take a seat</h2>
         <p>
-          Take a seat. Gameplay is not connected yet, so chips and actions are
-          unavailable.
+          Choose chips, then Deal. Reload persistence is pending M3: reloading
+          discards any unfinished hand and starts a new 1,000-chip session.
         </p>
-        <Table
-          balance={1000}
-          wager={0}
-          dealer={{ label: 'Dealer', total: 'Waiting for a deal', cards: [] }}
-          players={[
-            {
-              label: 'Your hand',
-              total: 'Your cards will appear here',
-              cards: [],
-            },
-          ]}
-          activeHand={null}
-          chips={unavailable}
-          onChip={() => {}}
-          actions={previewActions}
-        />
+        <PlayableRound />
       </section>
       <p className={styles.notice}>
         For entertainment only — virtual chips, no cash value.
