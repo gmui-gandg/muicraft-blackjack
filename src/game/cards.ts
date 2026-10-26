@@ -1,4 +1,4 @@
-import { CLASSIC_RULES } from './rules.js';
+import { CLASSIC_DECKS } from './rules.js';
 
 export const RANKS = [
   'A',
@@ -18,7 +18,7 @@ export const RANKS = [
 export const SUITS = ['clubs', 'diamonds', 'hearts', 'spades'] as const;
 export type Rank = (typeof RANKS)[number];
 export type Suit = (typeof SUITS)[number];
-export type Deck = 0 | 1 | 2 | 3 | 4 | 5;
+export type Deck = (typeof CLASSIC_DECKS)[number];
 export type Card = Readonly<{
   deck: Deck;
   rank: Rank;
@@ -27,8 +27,7 @@ export type Card = Readonly<{
 }>;
 
 export function createCards(): Card[] {
-  const decks: readonly Deck[] = [0, 1, 2, 3, 4, 5];
-  return decks.slice(0, CLASSIC_RULES.deckCount).flatMap((deck) =>
+  return CLASSIC_DECKS.flatMap((deck) =>
     SUITS.flatMap((suit) =>
       RANKS.map((rank): Card =>
         Object.freeze({

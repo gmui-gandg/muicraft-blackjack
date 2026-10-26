@@ -1,6 +1,12 @@
 import { describe, expect, test, vi } from 'vitest';
-import { createCards, RANKS, SUITS, type Rank } from '../src/game/cards.js';
-import { CLASSIC_RULES } from '../src/game/rules.js';
+import {
+  createCards,
+  RANKS,
+  SUITS,
+  type Card,
+  type Rank,
+} from '../src/game/cards.js';
+import { CLASSIC_DECKS, CLASSIC_RULES } from '../src/game/rules.js';
 import { cryptoUint32, randomIndex, shuffle } from '../src/game/random.js';
 import { isNatural, scoreHand } from '../src/game/scoring.js';
 import { Shoe } from '../src/game/shoe.js';
@@ -42,6 +48,7 @@ describe('six-deck cards and settings', () => {
       reshuffleAtRemaining: 78,
     });
     expect(Object.isFrozen(CLASSIC_RULES)).toBe(true);
+    expect(Object.isFrozen(CLASSIC_DECKS)).toBe(true);
     expect(cards.every(Object.isFrozen)).toBe(true);
   });
 });
@@ -185,6 +192,17 @@ describe('shoe ownership and round boundaries', () => {
       'duplicate card identities',
     );
   });
+  test.each<Card['id']>(['1:clubs:A', '0:hearts:A', '0:clubs:K'])(
+    'rejects injected ID %s that disagrees with physical card fields',
+    (id) => {
+      const card: Card = { deck: 0, suit: 'clubs', rank: 'A', id: '0:clubs:A' };
+      const mismatched: Card = { ...card, id };
+      expect(() => new Shoe([mismatched])).toThrow('card identity must match');
+      expect(() => new Shoe([card, mismatched])).toThrow(
+        'card identity must match',
+      );
+    },
+  );
   test.each([78, 77, 0])(
     'replenishes only at explicit round boundary with %i remaining',
     (remaining) => {
