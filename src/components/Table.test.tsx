@@ -2,6 +2,7 @@
 import '../test/setup';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
+import { outcomeLabels } from '../test/table-fixtures';
 import { ActionButton, PlayingCard, Table } from './Table';
 import {
   bettingFixture,
@@ -61,7 +62,7 @@ test('renders two supplied hands with one active label and a visible dealer tota
     expect(screen.getByRole('img', { name })).toBeVisible();
 });
 
-for (const label of ['Win', 'Loss', 'Push'] as const) {
+for (const label of outcomeLabels) {
   test(`displays supplied ${label} settlement values without computing them`, () => {
     const fixture = outcomeFixture(label);
     const hand = fixture.players[0];
@@ -113,4 +114,46 @@ test('disabled chips dispatch no callbacks', () => {
     fireEvent.click(chip);
   }
   expect(onChip).not.toHaveBeenCalled();
+});
+
+test('groups shared reasons while preserving distinct disabled explanations', () => {
+  const onActivate = vi.fn();
+  render(
+    <Table
+      {...splitFixture}
+      actions={[
+        { label: 'Hit', enabled: false, reason: 'Hand finished.', onActivate },
+        {
+          label: 'Stand',
+          enabled: false,
+          reason: 'Hand finished.',
+          onActivate,
+        },
+        {
+          label: 'Double',
+          enabled: false,
+          reason: 'Insufficient chips.',
+          onActivate,
+        },
+        { label: 'Next Hand', enabled: true, onActivate },
+      ]}
+    />,
+  );
+  expect(screen.getAllByText('Wagers are closed for this hand.')).toHaveLength(
+    1,
+  );
+  expect(screen.getAllByText('Hand finished.')).toHaveLength(1);
+  expect(screen.getAllByText('Insufficient chips.')).toHaveLength(1);
+  for (const label of ['Hit', 'Stand', 'Double']) {
+    const button = screen.getByRole('button', { name: label });
+    expect(button).toHaveAccessibleDescription(
+      label === 'Double' ? 'Insufficient chips.' : 'Hand finished.',
+    );
+    fireEvent.click(button);
+  }
+  expect(onActivate).not.toHaveBeenCalled();
+  const next = screen.getByRole('button', { name: 'Next Hand' });
+  expect(next).not.toHaveAttribute('aria-describedby');
+  fireEvent.click(next);
+  expect(onActivate).toHaveBeenCalledExactlyOnceWith();
 });

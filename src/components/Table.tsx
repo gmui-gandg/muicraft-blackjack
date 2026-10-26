@@ -1,15 +1,16 @@
 import { useId } from 'react';
+import type { Suit } from '../game/cards';
+import type { CardView, HandView, Control, TableProps } from './Table.types';
+export type {
+  CardView,
+  HandView,
+  ControlState,
+  Control,
+  TableProps,
+} from './Table.types';
 import styles from './Table.module.css';
 
-export type CardView =
-  | { readonly concealed: true }
-  | {
-      readonly concealed: false;
-      readonly rank: string;
-      readonly suit: 'clubs' | 'diamonds' | 'hearts' | 'spades';
-    };
-
-const suitPaths = {
+const suitPaths: Record<Suit, string> = {
   spades:
     'M40 5C31 20 7 34 7 53c0 17 20 24 30 11-1 12-5 21-12 27h30c-7-6-11-15-12-27 10 13 30 6 30-11C73 34 49 20 40 5Z',
   hearts: 'M40 87 9 52C-10 26 22 2 40 25 58 2 90 26 71 52Z',
@@ -46,18 +47,6 @@ export function PlayingCard({ card }: { card: CardView }) {
   );
 }
 
-export interface HandView {
-  readonly label: string;
-  readonly cards: readonly CardView[];
-  readonly total: string;
-  readonly stake?: number;
-  readonly outcome?: {
-    readonly label: 'Win' | 'Loss' | 'Push';
-    readonly returned: number;
-    readonly net: number;
-  };
-}
-
 function Hand({ hand, active = false }: { hand: HandView; active?: boolean }) {
   const headingId = useId();
   return (
@@ -86,20 +75,14 @@ function Hand({ hand, active = false }: { hand: HandView; active?: boolean }) {
   );
 }
 
-export type ControlState =
-  | { readonly enabled: true }
-  | { readonly enabled: false; readonly reason: string };
-export type Control = ControlState & {
-  readonly label: string;
-  readonly onActivate: () => void;
-};
-
 export function ActionButton({
   control,
   chip,
+  descriptionId,
 }: {
   control: Control;
   chip?: 10 | 50 | 100;
+  descriptionId?: string;
 }) {
   const reasonId = useId();
   return (
@@ -109,25 +92,56 @@ export function ActionButton({
         className={chip ? styles.chip : styles.button}
         aria-label={control.label}
         disabled={!control.enabled}
-        aria-describedby={!control.enabled ? reasonId : undefined}
+        aria-describedby={
+          !control.enabled ? (descriptionId ?? reasonId) : undefined
+        }
         onClick={() => control.onActivate()}
       >
         {chip ? <span>{chip}</span> : control.label}
       </button>
-      {!control.enabled && <small id={reasonId}>{control.reason}</small>}
+      {!control.enabled && !descriptionId && (
+        <small id={reasonId}>{control.reason}</small>
+      )}
     </div>
   );
 }
 
-export interface TableProps {
-  readonly balance: number;
-  readonly wager: number;
-  readonly dealer: HandView;
-  readonly players: readonly [HandView] | readonly [HandView, HandView];
-  readonly activeHand: 0 | 1 | null;
-  readonly chips: ControlState;
-  readonly onChip: (value: 10 | 50 | 100) => void;
-  readonly actions: readonly Control[];
+function ControlGroup({
+  controls,
+  className,
+  label,
+}: {
+  controls: readonly (Control & { readonly chip?: 10 | 50 | 100 })[];
+  className?: string;
+  label: string;
+}) {
+  const id = useId();
+  const reasons = [
+    ...new Set(
+      controls.flatMap((control) => (control.enabled ? [] : [control.reason])),
+    ),
+  ];
+  return (
+    <div className={className} role="group" aria-label={label}>
+      {controls.map((control) => (
+        <ActionButton
+          key={control.label}
+          control={control}
+          chip={control.chip}
+          descriptionId={
+            control.enabled
+              ? undefined
+              : `${id}-${reasons.indexOf(control.reason)}`
+          }
+        />
+      ))}
+      {reasons.map((reason, index) => (
+        <small className={styles.reason} key={reason} id={`${id}-${index}`}>
+          {reason}
+        </small>
+      ))}
+    </div>
+  );
 }
 
 export function Table({
@@ -153,19 +167,16 @@ export function Table({
             <dd>{wager}</dd>
           </div>
         </dl>
-        <div className={styles.chips} aria-label="Wager chips">
-          {([10, 50, 100] as const).map((value) => (
-            <ActionButton
-              key={value}
-              chip={value}
-              control={{
-                ...chips,
-                label: `Add ${value} chips`,
-                onActivate: () => onChip(value),
-              }}
-            />
-          ))}
-        </div>
+        <ControlGroup
+          className={styles.chips}
+          label="Wager chips"
+          controls={([10, 50, 100] as const).map((value) => ({
+            ...chips,
+            chip: value,
+            label: `Add ${value} chips`,
+            onActivate: () => onChip(value),
+          }))}
+        />
       </aside>
       <div className={styles.surface}>
         <div>
@@ -180,11 +191,11 @@ export function Table({
           ))}
         </div>
       </div>
-      <div className={styles.actions} role="group" aria-label="Table actions">
-        {actions.map((control) => (
-          <ActionButton key={control.label} control={control} />
-        ))}
-      </div>
+      <ControlGroup
+        className={styles.actions}
+        label="Table actions"
+        controls={actions}
+      />
     </section>
   );
 }

@@ -1,3 +1,7 @@
+import {
+  presentationFixtures,
+  isOutcomeLabel,
+} from '../src/test/table-fixtures.js';
 import { execFileSync } from 'node:child_process';
 import { test as base, expect } from '@playwright/test';
 import { launchVite, projectRoot } from '../tests/support/vite-process.js';
@@ -54,9 +58,15 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       page.getByText(/For entertainment only — virtual chips, no cash value/),
     ).toBeVisible();
     await expect(page.getByRole('button')).toHaveCount(9);
+    await expect(
+      page.getByText('Gameplay is not connected yet.', { exact: true }),
+    ).toHaveCount(2);
     const previewTargets = [];
     for (const button of await page.getByRole('button').all()) {
       await expect(button).toBeDisabled();
+      await expect(button).toHaveAccessibleDescription(
+        'Gameplay is not connected yet.',
+      );
       const box = await button.boundingBox();
       expect(box).not.toBeNull();
       if (!box) throw new Error('Missing preview target');
@@ -110,7 +120,7 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
   });
 }
 
-for (const scenario of ['betting', 'two-hands', 'Win', 'Loss', 'Push']) {
+for (const { scenario } of presentationFixtures) {
   test(`presentation fixture: ${scenario}`, async ({
     page,
     appURL,
@@ -125,6 +135,25 @@ for (const scenario of ['betting', 'two-hands', 'Win', 'Loss', 'Push']) {
     );
     const table = page.getByRole('region', { name: 'Blackjack table' });
     await expect(table).toBeVisible();
+    const palette = await table.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        felt: style.getPropertyValue('--felt').trim(),
+        gold: style.getPropertyValue('--gold').trim(),
+        ivory: style.getPropertyValue('--ivory').trim(),
+        ink: style.getPropertyValue('--ink').trim(),
+        red: style.getPropertyValue('--red').trim(),
+        background: getComputedStyle(document.documentElement).backgroundColor,
+      };
+    });
+    expect(palette).toEqual({
+      felt: '#0c5a43',
+      gold: '#d9be7a',
+      ivory: '#faf9f5',
+      ink: '#182323',
+      red: '#bd373c',
+      background: 'rgb(11, 31, 28)',
+    });
     const dimensions = await page.evaluate(() => ({
       scroll: document.documentElement.scrollWidth,
       client: document.documentElement.clientWidth,
@@ -210,7 +239,7 @@ for (const scenario of ['betting', 'two-hands', 'Win', 'Loss', 'Push']) {
       }
       layout = { dealer, first, second, actions, concealedMarkup };
     }
-    if (scenario === 'Win' || scenario === 'Loss' || scenario === 'Push') {
+    if (isOutcomeLabel(scenario)) {
       const expected = {
         Win: 'Win · Return: 100 · Net: 50',
         Loss: 'Loss · Return: 0 · Net: -50',
@@ -242,6 +271,7 @@ for (const scenario of ['betting', 'two-hands', 'Win', 'Loss', 'Push']) {
     expect(parseFloat(focus.outlineWidth)).toBeGreaterThanOrEqual(3);
     const observation = {
       scenario,
+      palette,
       dimensions,
       targets,
       cards,
@@ -270,3 +300,15 @@ for (const scenario of ['betting', 'two-hands', 'Win', 'Loss', 'Push']) {
     expect(errors).toEqual([]);
   });
 }
+
+test('unknown fixture scenarios fail explicitly instead of showing two hands', async ({
+  page,
+  appURL,
+}) => {
+  const error = page.waitForEvent('pageerror');
+  await page.goto(`${appURL}/e2e/fixtures/table.html?scenario=unknown`);
+  expect((await error).message).toBe('Unknown presentation fixture: unknown');
+  await expect(
+    page.getByRole('region', { name: 'Blackjack table' }),
+  ).toHaveCount(0);
+});

@@ -17,6 +17,14 @@ test('mounts an honest table preview with disabled gameplay', () => {
   expect(
     screen.getByText(/For entertainment only — virtual chips, no cash value/),
   ).toBeVisible();
+  for (const name of ['Wager chips', 'Table actions']) {
+    expect(screen.getByRole('group', { name })).toHaveTextContent(
+      'Gameplay is not connected yet.',
+    );
+  }
+  expect(
+    screen.getAllByText('Gameplay is not connected yet.', { exact: true }),
+  ).toHaveLength(2);
   const before = container.innerHTML;
   expect(screen.getAllByRole('button')).toHaveLength(9);
   for (const button of screen.getAllByRole('button')) {

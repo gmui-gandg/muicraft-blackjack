@@ -31,6 +31,7 @@
 }
 .chips {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
 }
@@ -42,13 +43,18 @@
   min-width: 0;
   flex: 1;
 }
-.control small {
+.control small,
+.reason {
   color: #d3ded8;
   font-size: 0.75rem;
   line-height: 1.4;
-  overflow-wrap: anywhere;
   text-align: center;
   max-width: 22ch;
+}
+.reason {
+  grid-column: 1 / -1;
+  flex-basis: 100%;
+  max-width: none;
 }
 .button,
 .chip {
@@ -214,6 +220,7 @@
   }
   .actions {
     display: flex;
+    flex-wrap: wrap;
     position: static;
   }
 }

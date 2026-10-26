@@ -1,4 +1,4 @@
-import type { HandView, TableProps } from '../components/Table';
+import type { HandView, TableProps } from '../components/Table.types.js';
 
 const first: HandView = {
   label: 'Hand 1',
@@ -49,12 +49,19 @@ export const bettingFixture: TableProps = {
   onChip: () => {},
   actions: [{ label: 'Deal', enabled: true, onActivate: () => {} }],
 };
-export function outcomeFixture(label: 'Win' | 'Loss' | 'Push'): TableProps {
-  const values = {
-    Win: { returned: 100, net: 50 },
-    Loss: { returned: 0, net: -50 },
-    Push: { returned: 50, net: 0 },
-  };
+type Outcome = NonNullable<HandView['outcome']>;
+export const outcomeValues = {
+  Win: { returned: 100, net: 50 },
+  Loss: { returned: 0, net: -50 },
+  Push: { returned: 50, net: 0 },
+} satisfies Record<Outcome['label'], Omit<Outcome, 'label'>>;
+
+export function isOutcomeLabel(label: string): label is Outcome['label'] {
+  return Object.hasOwn(outcomeValues, label);
+}
+export const outcomeLabels = Object.keys(outcomeValues).filter(isOutcomeLabel);
+
+export function outcomeFixture(label: Outcome['label']): TableProps {
   return {
     ...splitFixture,
     dealer: {
@@ -83,10 +90,19 @@ export function outcomeFixture(label: 'Win' | 'Loss' | 'Push'): TableProps {
           },
         ],
         stake: 50,
-        outcome: { label, ...values[label] },
+        outcome: { label, ...outcomeValues[label] },
       },
     ],
     activeHand: null,
     actions: [{ label: 'Next Hand', enabled: true, onActivate: () => {} }],
   };
 }
+
+export const presentationFixtures = [
+  { scenario: 'betting', fixture: bettingFixture },
+  { scenario: 'two-hands', fixture: splitFixture },
+  ...outcomeLabels.map((label) => ({
+    scenario: label,
+    fixture: outcomeFixture(label),
+  })),
+];
