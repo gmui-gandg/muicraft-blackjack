@@ -315,9 +315,14 @@ describe('phase enforcement and next round', () => {
     expect(result.state.discards).toEqual([]);
     const expectedShoe = new Shoe(bet.shoe);
     expectedShoe.prepareForRound(() => 0);
-    expect(owned(result.state)).toEqual(
-      expect.arrayContaining([...expectedShoe.snapshot()]),
-    );
+    const expected = expectedShoe.snapshot();
+    expect(result.state.round?.hands[0].cards).toEqual([
+      expected[0],
+      expected[2],
+    ]);
+    expect(result.state.round?.dealer).toEqual([expected[1], expected[3]]);
+    expect(result.state.shoe).toEqual(expected.slice(4));
+    expect(owned(result.state)).toEqual(expect.arrayContaining([...expected]));
   });
   test('above threshold Deal retains order and does not use RNG', () => {
     const betting = act(fixture('10', '9', '8', '7'), {

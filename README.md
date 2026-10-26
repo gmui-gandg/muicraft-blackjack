@@ -33,8 +33,9 @@ dealer, and payout rules from PRD section 3.
 ## M1 ordinary-round engine
 
 `createGame(shoe?)` in `src/game/round.ts` starts a 1,000-chip session.
-`transition(state, event, nextUint32?)` returns an accepted state or the original
-state with a typed rejection reason. `eligibility(state, event)` exposes the same
+`transition(state, event, nextUint32?)` returns `{ accepted: true, state }` or
+`{ accepted: false, state: originalState, reason }` with a typed rejection reason.
+`eligibility(state, event)` exposes the same
 phase and wager rules for controls. Double and Split return `NOT_IMPLEMENTED`.
 The engine has no React, animation, clock, storage, or DOM dependency.
 
