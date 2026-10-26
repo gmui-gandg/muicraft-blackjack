@@ -1,6 +1,13 @@
 import { useId } from 'react';
 import type { Suit } from '../game/cards';
-import type { CardView, HandView, Control, TableProps } from './Table.types';
+import {
+  chipDenominations,
+  type ChipDenomination,
+  type CardView,
+  type HandView,
+  type Control,
+  type TableProps,
+} from './Table.types';
 export type {
   CardView,
   HandView,
@@ -81,7 +88,7 @@ export function ActionButton({
   descriptionId,
 }: {
   control: Control;
-  chip?: 10 | 50 | 100;
+  chip?: ChipDenomination;
   descriptionId?: string;
 }) {
   const reasonId = useId();
@@ -111,7 +118,7 @@ function ControlGroup({
   className,
   label,
 }: {
-  controls: readonly (Control & { readonly chip?: 10 | 50 | 100 })[];
+  controls: readonly (Control & { readonly chip?: ChipDenomination })[];
   className?: string;
   label: string;
 }) {
@@ -170,7 +177,7 @@ export function Table({
         <ControlGroup
           className={styles.chips}
           label="Wager chips"
-          controls={([10, 50, 100] as const).map((value) => ({
+          controls={chipDenominations.map((value) => ({
             ...('enabled' in chips ? chips : chips[value]),
             chip: value,
             label: `Add ${value} chips`,

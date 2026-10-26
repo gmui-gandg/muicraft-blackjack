@@ -1,5 +1,8 @@
 import type { Rank, Suit } from '../game/cards.js';
 
+export const chipDenominations = [10, 50, 100] as const;
+export type ChipDenomination = (typeof chipDenominations)[number];
+
 export type CardView =
   | { readonly concealed: true }
   | {
@@ -34,7 +37,8 @@ export interface TableProps {
   readonly dealer: HandView;
   readonly players: readonly [HandView] | readonly [HandView, HandView];
   readonly activeHand: 0 | 1 | null;
-  readonly chips: ControlState | Readonly<Record<10 | 50 | 100, ControlState>>;
-  readonly onChip: (value: 10 | 50 | 100) => void;
+  readonly chips:
+    ControlState | Readonly<Record<ChipDenomination, ControlState>>;
+  readonly onChip: (value: ChipDenomination) => void;
   readonly actions: readonly Control[];
 }

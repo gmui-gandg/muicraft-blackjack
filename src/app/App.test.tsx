@@ -59,6 +59,13 @@ for (const entry of roundCases) {
       `Return: ${entry.returned} · Net: ${entry.net}`,
     );
     expect(screen.queryByRole('img', { name: 'Concealed card' })).toBeNull();
+    if (entry.name === 'dealer-bust')
+      expect(
+        within(screen.getByRole('region', { name: 'Dealer' })).getByText(
+          'Total: 26',
+          { exact: true },
+        ),
+      ).toBeVisible();
     for (const name of ['Hit', 'Stand', 'Deal'])
       expect(screen.getByRole('button', { name })).toBeDisabled();
     const before = container.innerHTML;
