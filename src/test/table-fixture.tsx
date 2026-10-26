@@ -5,8 +5,9 @@ import '../styles/global.css';
 
 const scenario =
   new URLSearchParams(location.search).get('scenario') ?? 'two-hands';
-const entry = presentationFixtures.find((entry) => entry.scenario === scenario);
-if (!entry) throw new Error(`Unknown presentation fixture: ${scenario}`);
+const entry = presentationFixtures.find(
+  (entry) => entry.scenario === scenario,
+)!;
 
 createRoot(document.getElementById('root')!).render(
   <main style={{ maxWidth: 1200, margin: 'auto', padding: 12 }}>

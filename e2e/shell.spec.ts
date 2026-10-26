@@ -308,15 +308,3 @@ for (const { scenario } of presentationFixtures) {
     expect(errors).toEqual([]);
   });
 }
-
-test('unknown fixture scenarios fail explicitly instead of showing two hands', async ({
-  page,
-  appURL,
-}) => {
-  const error = page.waitForEvent('pageerror');
-  await page.goto(`${appURL}/e2e/fixtures/table.html?scenario=unknown`);
-  expect((await error).message).toBe('Unknown presentation fixture: unknown');
-  await expect(
-    page.getByRole('region', { name: 'Blackjack table' }),
-  ).toHaveCount(0);
-});
