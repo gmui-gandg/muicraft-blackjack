@@ -37,7 +37,9 @@ export type PlayerHand = Readonly<{
   complete: boolean;
   splitAces: boolean;
 }>;
-type Hands = readonly [PlayerHand] | readonly [PlayerHand, PlayerHand];
+type Hands =
+  | readonly [PlayerHand & { readonly splitAces: false }]
+  | readonly [PlayerHand, PlayerHand];
 type Round = Readonly<{
   hands: Hands;
   dealer: readonly Card[];
@@ -147,12 +149,16 @@ export function eligibility(state: GameState, event: GameEvent): Eligibility {
   return { allowed: false, reason: 'WRONG_PHASE' };
 }
 
-function replaceHand(hands: Hands, index: 0 | 1, hand: PlayerHand): Hands {
+function updateHand(
+  hands: Hands,
+  index: 0 | 1,
+  changes: Partial<Omit<PlayerHand, 'splitAces'>>,
+): Hands {
   return hands.length === 1
-    ? [hand]
+    ? [{ ...hands[0], ...changes }]
     : index === 0
-      ? [hand, hands[1]]
-      : [hands[0], hand];
+      ? [{ ...hands[0], ...changes }, hands[1]]
+      : [hands[0], { ...hands[1], ...changes }];
 }
 
 function handOutcome(
@@ -190,7 +196,7 @@ function settle(state: Common, round: Round): GameState {
   let hands = round.hands;
   for (const index of [0, 1] as const) {
     const hand = hands[index];
-    if (hand) hands = replaceHand(hands, index, { ...hand, complete: true });
+    if (hand) hands = updateHand(hands, index, { complete: true });
   }
   const outcome = outcomes.every((value) => value === outcomes[0])
     ? outcomes[0]!
@@ -280,8 +286,7 @@ export function transition(
     const complete = event.type !== 'HIT' || scoreHand(cards).total >= 21;
     const round: Round = {
       ...state.round,
-      hands: replaceHand(state.round.hands, index, {
-        ...hand,
+      hands: updateHand(state.round.hands, index, {
         cards,
         complete,
         stake: event.type === 'DOUBLE' ? hand.stake * 2 : hand.stake,

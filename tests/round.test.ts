@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, expectTypeOf, test, vi } from 'vitest';
 import { createCards, type Rank } from '../src/game/cards.js';
 import {
   createGame,
@@ -6,6 +6,7 @@ import {
   transition,
   type GameEvent,
   type GameState,
+  type PlayerHand,
 } from '../src/game/round.js';
 import { Shoe } from '../src/game/shoe.js';
 
@@ -366,6 +367,21 @@ describe('phase enforcement and next round', () => {
 });
 
 describe('funded two-card Double', () => {
+  test('singleton rounds cannot carry split-ace restrictions', () => {
+    type InvalidRound = {
+      hands: readonly [PlayerHand & { readonly splitAces: true }];
+      dealer: PlayerHand['cards'];
+    };
+    expectTypeOf<InvalidRound>().not.toExtend<
+      NonNullable<GameState['round']>
+    >();
+    const start = deal('5', '10', '6', '7', '2');
+    expect(start.round?.hands).toHaveLength(1);
+    expect(start.round?.hands[0].splitAces).toBe(false);
+    for (const type of ['HIT', 'STAND', 'DOUBLE'] as const)
+      expect(eligibility(start, { type })).toEqual({ allowed: true });
+  });
+
   test.each([
     { draw: '7', outcome: 'win', returned: 40, balance: 1020 },
     { draw: '6', outcome: 'push', returned: 20, balance: 1000 },
@@ -475,6 +491,60 @@ function splitFixture(activeHandIndex: 0 | 1, aces = false): GameState {
 }
 
 describe('split hand-state unit coverage (no Split operation or integration journey)', () => {
+  test.each(['HIT', 'DOUBLE'] as const)(
+    '%s: two busted unit hands settle without dealer draws',
+    (type) => {
+      const source = fixture('10', '6', '10', '6', '2', '3', 'K', 'K');
+      const start: GameState = {
+        ...source,
+        phase: 'PLAYER_TURN',
+        balance: 980,
+        wager: 10,
+        activeHandIndex: 0,
+        shoe: source.shoe.slice(6),
+        round: {
+          dealer: source.shoe.slice(4, 6),
+          hands: [
+            {
+              cards: source.shoe.slice(0, 2),
+              stake: 10,
+              complete: false,
+              splitAces: false,
+            },
+            {
+              cards: source.shoe.slice(2, 4),
+              stake: 10,
+              complete: false,
+              splitAces: false,
+            },
+          ],
+        },
+      };
+      const first = act(start, { type });
+      expect(first).toMatchObject({ phase: 'PLAYER_TURN', activeHandIndex: 1 });
+      expect(first.round?.hands[0].complete).toBe(true);
+      expect(first.round?.hands[1]).toBe(start.round?.hands[1]);
+      const end = act(first, { type });
+      expect(end).toMatchObject({
+        phase: 'ROUND_COMPLETE',
+        activeHandIndex: null,
+        outcome: 'loss',
+        returned: 0,
+        balance: type === 'DOUBLE' ? 960 : 980,
+      });
+      expect(end.round?.hands.every((hand) => hand.complete)).toBe(true);
+      expect(end.round?.hands.map((hand) => hand.stake)).toEqual(
+        type === 'DOUBLE' ? [20, 20] : [10, 10],
+      );
+      expect(end.round?.dealer).toBe(start.round?.dealer);
+      expect(end.shoe).toEqual(start.shoe.slice(2));
+      expect(end.discards).toBe(start.discards);
+      expect(end.history).toEqual([...start.history, { type }, { type }]);
+      expect(owned(end)).toHaveLength(owned(start).length);
+      expect(new Set(owned(end))).toEqual(new Set(owned(start)));
+    },
+  );
+
   test.each([0, 1] as const)(
     'Double on active non-ace split hand %i',
     (index) => {
