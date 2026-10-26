@@ -19,6 +19,10 @@ export class Shoe {
     return this.#cards.length;
   }
 
+  snapshot(): readonly Card[] {
+    return [...this.#cards];
+  }
+
   draw(): Card | undefined {
     return this.#cards.shift();
   }
