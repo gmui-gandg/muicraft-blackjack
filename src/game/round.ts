@@ -35,7 +35,7 @@ export type PlayerHand = Readonly<{
   cards: readonly Card[];
   stake: number;
   complete: boolean;
-  origin: 'original' | 'split' | 'split-aces';
+  origin: 'original' | 'split-aces';
 }>;
 type Hands = readonly [PlayerHand] | readonly [PlayerHand, PlayerHand];
 type Round = Readonly<{
@@ -156,13 +156,14 @@ function replaceHand(hands: Hands, index: 0 | 1, hand: PlayerHand): Hands {
       : [hands[0], hand];
 }
 
-function handOutcome(hand: PlayerHand, dealerCards: readonly Card[]): Outcome {
+function handOutcome(
+  hand: PlayerHand,
+  dealerCards: readonly Card[],
+  split: boolean,
+): Outcome {
   const player = scoreHand(hand.cards);
   const dealer = scoreHand(dealerCards);
-  const playerNatural = isNatural(
-    hand.cards,
-    hand.origin === 'original' ? 'original' : 'split',
-  );
+  const playerNatural = isNatural(hand.cards, split ? 'split' : 'original');
   const dealerNatural = isNatural(dealerCards, 'original');
   if (player.bust || (dealerNatural && !playerNatural)) return 'loss';
   if (playerNatural && !dealerNatural) return 'blackjack';
@@ -172,7 +173,9 @@ function handOutcome(hand: PlayerHand, dealerCards: readonly Card[]): Outcome {
 }
 
 function settle(state: Common, round: Round): GameState {
-  const outcomes = round.hands.map((hand) => handOutcome(hand, round.dealer));
+  const outcomes = round.hands.map((hand) =>
+    handOutcome(hand, round.dealer, round.hands.length === 2),
+  );
   const returned = round.hands.reduce(
     (total, hand, index) =>
       total +
