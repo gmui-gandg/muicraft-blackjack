@@ -36,7 +36,7 @@ dealer, and payout rules from PRD section 3.
 `transition(state, event, nextUint32?)` returns `{ accepted: true, state }` or
 `{ accepted: false, state: originalState, reason }` with a typed rejection reason.
 `eligibility(state, event)` exposes the same
-phase and wager rules for controls. Double and Split return `NOT_IMPLEMENTED`.
+phase, hand and funding rules for controls. Split returns `NOT_IMPLEMENTED`.
 The engine has no React, animation, clock, storage, or DOM dependency.
 
 Select a wager with `PLACE_BET` (10–500 in multiples of 10, capped by balance),
@@ -56,13 +56,35 @@ animation completion. `NEXT_HAND` moves table cards to discards and clears the w
 reshuffling; the subsequent Deal applies the shoe boundary policy, clearing
 discards when the full shoe is replenished.
 
-State owns remaining cards, discards, dealer cards, the one original hand and stake,
-active hand index, completion, balance, and accepted-event history. A completed
+State owns remaining cards, discards, dealer cards, one or two hands with stakes
+and original/split/split-ace provenance, active hand index, completion, balance,
+and accepted-event history. A completed
 round includes outcome and returned chips: natural 2.5× stake, win 2×, push 1×,
 loss 0×. Rejected events preserve state identity and history. History records
 accepted commands; automatic natural/bust settlement is part of that command.
 An exhausted injected mid-round shoe rejects the draw atomically, without
-reshuffling. Double and Split remain pending M3. The playable UI connects these engine events.
+reshuffling. The playable UI connects the ordinary-round engine events.
+
+## M3 Double engine
+
+`DOUBLE` requires an unfinished, non-split-ace active hand with its first two cards
+and available balance at least equal to its stake. It commits that additional
+stake, draws exactly one card and completes the hand even below 21. A second
+Double is refused because the hand is complete. The engine advances to the next
+unfinished hand, otherwise dealer play (or immediate settlement if all hands bust).
+For a 10-chip wager from 1,000, Double leaves 980 available and a stake of 20;
+win/push/loss returns 40/20/0 for balances 1,020/1,000/980.
+
+Eligibility and transition share typed reasons for completed hands, split aces,
+third cards, insufficient funds, wrong phase and exhausted shoes. All rejections
+preserve the input state, cards, balance and history. Settlement and discards retain
+all represented hands; split provenance prevents natural payouts, and differing
+hand outcomes produce `mixed` with the total returned chips.
+
+Tests for either active non-ace split hand and split-ace rejection use unit
+hand-state fixtures only. The actual `SPLIT` operation, Split→Double journey, full
+split settlement integration, and player-facing Double/Split controls remain
+for later tickets. No Double control or persistence is added here.
 
 ## M2 table presentation
 
@@ -187,7 +209,7 @@ The gameplay matrix uses desktop pointer clicks and real hasTouch-enabled taps a
 390 px, covering all seven deterministic outcome balances, Hit/Stand, concealment,
 repeated actions, Next Hand, reset, and a built-production-entry smoke. Five-width
 presentation/layout coverage remains separate; fixtures alone do not prove gameplay.
-Full MVP acceptance remains future work, including Double/Split, persistence,
+Full MVP acceptance remains future work, including Double/Split UI and split integration, persistence,
 help/keyboard/motion milestones and live deployment validation. Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
 
 ## Production packaging source (not executed at M0)
@@ -241,5 +263,6 @@ the [issue #2 scaffold](https://github.com/gmui-gandg/muicraft-blackjack/issues/
 plus [issue #3 primitives](https://github.com/gmui-gandg/muicraft-blackjack/issues/3),
 [issue #4 ordinary-round engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/4),
 [issue #5 table presentation](https://github.com/gmui-gandg/muicraft-blackjack/issues/5),
-and [issue #6 playable rounds](https://github.com/gmui-gandg/muicraft-blackjack/issues/6).
+[issue #6 playable rounds](https://github.com/gmui-gandg/muicraft-blackjack/issues/6),
+and [issue #7 Double engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/7).
 No schedules, automatic merges, or deployments are enabled.

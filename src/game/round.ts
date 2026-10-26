@@ -23,7 +23,10 @@ export type RejectionReason =
   | 'INSUFFICIENT_FUNDS'
   | 'WAGER_REQUIRED'
   | 'NOT_IMPLEMENTED'
-  | 'SHOE_EXHAUSTED';
+  | 'SHOE_EXHAUSTED'
+  | 'HAND_COMPLETE'
+  | 'TWO_CARDS_REQUIRED'
+  | 'SPLIT_ACES';
 export type Eligibility =
   | Readonly<{ allowed: true }>
   | Readonly<{ allowed: false; reason: RejectionReason }>;
@@ -32,9 +35,11 @@ export type PlayerHand = Readonly<{
   cards: readonly Card[];
   stake: number;
   complete: boolean;
+  origin: 'original' | 'split' | 'split-aces';
 }>;
+type Hands = readonly [PlayerHand] | readonly [PlayerHand, PlayerHand];
 type Round = Readonly<{
-  hands: readonly [PlayerHand];
+  hands: Hands;
   dealer: readonly Card[];
 }>;
 type Common = Readonly<{
@@ -49,6 +54,11 @@ export type GameState = Common &
     | Readonly<{ phase: 'BETTING'; round: null; activeHandIndex: null }>
     | Readonly<{ phase: 'PLAYER_TURN'; round: Round; activeHandIndex: 0 }>
     | Readonly<{
+        phase: 'PLAYER_TURN';
+        round: Round & { readonly hands: readonly [PlayerHand, PlayerHand] };
+        activeHandIndex: 1;
+      }>
+    | Readonly<{
         phase: 'DEALER_TURN' | 'SETTLEMENT';
         round: Round;
         activeHandIndex: null;
@@ -57,7 +67,7 @@ export type GameState = Common &
         phase: 'ROUND_COMPLETE';
         round: Round;
         activeHandIndex: null;
-        outcome: Outcome;
+        outcome: Outcome | 'mixed';
         returned: number;
       }>
   );
@@ -90,7 +100,7 @@ function wagerEligibility(balance: number, amount: number): Eligibility {
 }
 
 export function eligibility(state: GameState, event: GameEvent): Eligibility {
-  if (event.type === 'DOUBLE' || event.type === 'SPLIT')
+  if (event.type === 'SPLIT')
     return { allowed: false, reason: 'NOT_IMPLEMENTED' };
   switch (event.type) {
     case 'PLACE_BET':
@@ -105,13 +115,26 @@ export function eligibility(state: GameState, event: GameEvent): Eligibility {
       }
       break;
     case 'HIT':
-      if (state.phase === 'PLAYER_TURN')
-        return state.shoe.length > 0
+    case 'STAND':
+    case 'DOUBLE':
+      if (state.phase === 'PLAYER_TURN') {
+        const hand =
+          state.activeHandIndex === 0
+            ? state.round.hands[0]
+            : state.round.hands[1];
+        if (hand.complete) return { allowed: false, reason: 'HAND_COMPLETE' };
+        if (hand.origin === 'split-aces')
+          return { allowed: false, reason: 'SPLIT_ACES' };
+        if (event.type === 'DOUBLE') {
+          if (hand.cards.length !== 2)
+            return { allowed: false, reason: 'TWO_CARDS_REQUIRED' };
+          if (state.balance < hand.stake)
+            return { allowed: false, reason: 'INSUFFICIENT_FUNDS' };
+        }
+        return event.type === 'STAND' || state.shoe.length > 0
           ? { allowed: true }
           : { allowed: false, reason: 'SHOE_EXHAUSTED' };
-      break;
-    case 'STAND':
-      if (state.phase === 'PLAYER_TURN') return { allowed: true };
+      }
       break;
     case 'DEALER_TURN':
       if (state.phase === 'DEALER_TURN') return { allowed: true };
@@ -125,35 +148,76 @@ export function eligibility(state: GameState, event: GameEvent): Eligibility {
   return { allowed: false, reason: 'WRONG_PHASE' };
 }
 
-function settle(state: Common, round: Round): GameState {
-  const hand = round.hands[0];
+function replaceHand(hands: Hands, index: 0 | 1, hand: PlayerHand): Hands {
+  return hands.length === 1
+    ? [hand]
+    : index === 0
+      ? [hand, hands[1]]
+      : [hands[0], hand];
+}
+
+function handOutcome(hand: PlayerHand, dealerCards: readonly Card[]): Outcome {
   const player = scoreHand(hand.cards);
-  const dealer = scoreHand(round.dealer);
-  const playerNatural = isNatural(hand.cards, 'original');
-  const dealerNatural = isNatural(round.dealer, 'original');
-  let outcome: Outcome;
-  if (player.bust || (dealerNatural && !playerNatural)) outcome = 'loss';
-  else if (playerNatural && !dealerNatural) outcome = 'blackjack';
-  else if (playerNatural || player.total === dealer.total) outcome = 'push';
-  else if (dealer.bust || player.total > dealer.total) outcome = 'win';
-  else outcome = 'loss';
-  const returned =
-    hand.stake *
-    (
-      { blackjack: 2.5, win: 2, push: 1, loss: 0 } satisfies Record<
-        Outcome,
-        number
-      >
-    )[outcome];
+  const dealer = scoreHand(dealerCards);
+  const playerNatural = isNatural(
+    hand.cards,
+    hand.origin === 'original' ? 'original' : 'split',
+  );
+  const dealerNatural = isNatural(dealerCards, 'original');
+  if (player.bust || (dealerNatural && !playerNatural)) return 'loss';
+  if (playerNatural && !dealerNatural) return 'blackjack';
+  if (playerNatural || player.total === dealer.total) return 'push';
+  if (dealer.bust || player.total > dealer.total) return 'win';
+  return 'loss';
+}
+
+function settle(state: Common, round: Round): GameState {
+  const outcomes = round.hands.map((hand) => handOutcome(hand, round.dealer));
+  const returned = round.hands.reduce(
+    (total, hand, index) =>
+      total +
+      hand.stake *
+        (
+          { blackjack: 2.5, win: 2, push: 1, loss: 0 } satisfies Record<
+            Outcome,
+            number
+          >
+        )[outcomes[index]!],
+    0,
+  );
+  let hands = round.hands;
+  for (const index of [0, 1] as const) {
+    const hand = hands[index];
+    if (hand) hands = replaceHand(hands, index, { ...hand, complete: true });
+  }
+  const outcome = outcomes.every((value) => value === outcomes[0])
+    ? outcomes[0]!
+    : 'mixed';
   return {
     ...state,
     phase: 'ROUND_COMPLETE',
-    round: { ...round, hands: [{ ...hand, complete: true }] },
+    round: { ...round, hands },
     activeHandIndex: null,
     balance: state.balance + returned,
     outcome,
     returned,
   };
+}
+
+function advancePlayer(state: Common, round: Round): GameState {
+  const hands = round.hands;
+  if (!hands[0].complete)
+    return { ...state, phase: 'PLAYER_TURN', round, activeHandIndex: 0 };
+  if (hands.length === 2 && !hands[1].complete)
+    return {
+      ...state,
+      phase: 'PLAYER_TURN',
+      round: { ...round, hands },
+      activeHandIndex: 1,
+    };
+  return hands.every((hand) => scoreHand(hand.cards).bust)
+    ? settle(state, round)
+    : { ...state, phase: 'DEALER_TURN', round, activeHandIndex: null };
 }
 
 export function transition(
@@ -181,6 +245,7 @@ export function transition(
           cards: [playerFirst, playerSecond],
           stake: state.wager,
           complete: false,
+          origin: 'original',
         },
       ],
       dealer: [upcard, hole],
@@ -200,26 +265,32 @@ export function transition(
         ? settle(committed, round)
         : { ...committed, phase: 'PLAYER_TURN', round, activeHandIndex: 0 };
   } else if (
-    (event.type === 'HIT' || event.type === 'STAND') &&
+    (event.type === 'HIT' ||
+      event.type === 'STAND' ||
+      event.type === 'DOUBLE') &&
     state.phase === 'PLAYER_TURN'
   ) {
-    const hand = state.round.hands[0];
-    const cards =
-      event.type === 'HIT' ? [...hand.cards, state.shoe[0]!] : hand.cards;
-    const complete = event.type === 'STAND' || scoreHand(cards).total >= 21;
+    const index = state.activeHandIndex;
+    const hand =
+      state.activeHandIndex === 0 ? state.round.hands[0] : state.round.hands[1];
+    const draws = event.type !== 'STAND';
+    const cards = draws ? [...hand.cards, state.shoe[0]!] : hand.cards;
+    const complete = event.type !== 'HIT' || scoreHand(cards).total >= 21;
     const round: Round = {
       ...state.round,
-      hands: [{ ...hand, cards, complete }],
+      hands: replaceHand(state.round.hands, index, {
+        ...hand,
+        cards,
+        complete,
+        stake: event.type === 'DOUBLE' ? hand.stake * 2 : hand.stake,
+      }),
     };
     const drawn = {
       ...common,
-      shoe: event.type === 'HIT' ? state.shoe.slice(1) : state.shoe,
+      balance: common.balance - (event.type === 'DOUBLE' ? hand.stake : 0),
+      shoe: draws ? state.shoe.slice(1) : state.shoe,
     };
-    next = scoreHand(cards).bust
-      ? settle(drawn, round)
-      : complete
-        ? { ...drawn, phase: 'DEALER_TURN', round, activeHandIndex: null }
-        : { ...drawn, phase: 'PLAYER_TURN', round, activeHandIndex: 0 };
+    next = advancePlayer(drawn, round);
   } else if (event.type === 'DEALER_TURN' && state.phase === 'DEALER_TURN') {
     const dealer = [...state.round.dealer];
     let consumed = 0;
@@ -244,7 +315,7 @@ export function transition(
       shoe: common.shoe,
       discards: [
         ...state.discards,
-        ...state.round.hands[0].cards,
+        ...state.round.hands.flatMap((hand) => hand.cards),
         ...state.round.dealer,
       ],
       history: common.history,
