@@ -48,7 +48,7 @@ are replenished by the fixed threshold policy. Inject a `Uint32Source` into
 remaining sequence so transitions do not mutate the source shoe or input state.
 
 Opening naturals settle immediately, including required Ace/ten-value peeks.
-Otherwise `HIT` or `STAND` drives `PLAYER_TURN`; 21 completes the hand and bust
+Otherwise `HIT`, `STAND` or `DOUBLE` drives `PLAYER_TURN`; 21 completes the hand and bust
 settles immediately without dealer draws. After a surviving hand completes,
 `DEALER_TURN` runs the dealer to S17 and enters `SETTLEMENT`; `SETTLE` pays once
 and enters `ROUND_COMPLETE`. These explicit engine events do not depend on UI
