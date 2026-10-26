@@ -57,7 +57,7 @@ reshuffling; the subsequent Deal applies the shoe boundary policy, clearing
 discards when the full shoe is replenished.
 
 State owns remaining cards, discards, dealer cards, one or two hands with stakes
-and original/split/split-ace provenance, active hand index, completion, balance,
+and a split-ace marker, active hand index, completion, balance,
 and accepted-event history. A completed
 round includes outcome and returned chips: natural 2.5× stake, win 2×, push 1×,
 loss 0×. Rejected events preserve state identity and history. History records
@@ -78,7 +78,7 @@ win/push/loss returns 40/20/0 for balances 1,020/1,000/980.
 Eligibility and transition share typed reasons for completed hands, split aces,
 third cards, insufficient funds, wrong phase and exhausted shoes. All rejections
 preserve the input state, cards, balance and history. Settlement and discards retain
-all represented hands; split provenance prevents natural payouts, and differing
+all represented hands; two-hand rounds prevent natural payouts, and differing
 hand outcomes produce `mixed` with the total returned chips.
 
 Tests for either active non-ace split hand and split-ace rejection use unit
