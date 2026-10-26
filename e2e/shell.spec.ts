@@ -2,30 +2,8 @@ import {
   presentationFixtures,
   isOutcomeLabel,
 } from '../src/test/table-fixtures.js';
-import { execFileSync } from 'node:child_process';
-import { test as base, expect } from '@playwright/test';
-import { launchVite, projectRoot } from '../tests/support/vite-process.js';
-
-const test = base.extend<{ appURL: string }>({
-  appURL: async ({ request }, use) => {
-    const identity = execFileSync('git', ['rev-parse', 'HEAD'], {
-      cwd: projectRoot,
-      encoding: 'utf8',
-    }).trim();
-    const server = await launchVite(identity);
-    try {
-      await server.ready();
-      const response = await request.get(`${server.baseURL}/build-id`, {
-        maxRedirects: 0,
-      });
-      expect(response.status()).toBe(200);
-      expect(await response.text()).toBe(identity);
-      await use(server.baseURL);
-    } finally {
-      await server.stop();
-    }
-  },
-});
+import { expect } from '@playwright/test';
+import { test } from './app-test.js';
 
 for (const reducedMotion of ['no-preference', 'reduce'] as const) {
   test(`renders the honest responsive shell with motion=${reducedMotion}`, async ({
@@ -49,24 +27,17 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       page.getByRole('heading', { level: 1, name: 'MuiCraft Blackjack' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: 'Table preview' }),
+      page.getByRole('heading', { name: 'Take a seat' }),
     ).toBeVisible();
     await expect(
-      page.getByText(/Take a seat. Gameplay is not connected yet/),
+      page.getByText(/Reload persistence is pending M3/),
     ).toBeVisible();
     await expect(
       page.getByText(/For entertainment only — virtual chips, no cash value/),
     ).toBeVisible();
-    await expect(page.getByRole('button')).toHaveCount(9);
-    await expect(
-      page.getByText('Gameplay is not connected yet.', { exact: true }),
-    ).toHaveCount(2);
+    await expect(page.getByRole('button')).toHaveCount(7);
     const previewTargets = [];
     for (const button of await page.getByRole('button').all()) {
-      await expect(button).toBeDisabled();
-      await expect(button).toHaveAccessibleDescription(
-        'Gameplay is not connected yet.',
-      );
       const box = await button.boundingBox();
       expect(box).not.toBeNull();
       if (!box) throw new Error('Missing preview target');

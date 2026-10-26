@@ -1,14 +1,14 @@
 # MuiCraft Blackjack
 
-A responsive table preview for a future single-player blackjack game. **Gameplay
-controls are disabled; the pure engine is not wired to the table or storage.** The
+A responsive single-player blackjack game with virtual wagering, Deal, Hit, Stand,
+settlement and explicit Next Hand, backed by the pure TypeScript engine. The
 original spade and CSS artwork use no external assets or fonts. For entertainment
 only — virtual chips, no cash value.
 
 ## M1 card, shoe, and scoring primitives
 
 `src/game` contains pure TypeScript primitives for `classic-six-deck-s17-v1`.
-The preview has disabled gameplay controls. `createCards()` creates six standard
+`createCards()` creates six standard
 decks with 312 immutable cards identified by deck, suit, and rank. `shuffle()`
 uses Fisher–Yates with crypto-backed rejection sampling; a `Uint32Source` can
 be injected for deterministic tests.
@@ -62,7 +62,7 @@ round includes outcome and returned chips: natural 2.5× stake, win 2×, push 1�
 loss 0×. Rejected events preserve state identity and history. History records
 accepted commands; automatic natural/bust settlement is part of that command.
 An exhausted injected mid-round shoe rejects the draw atomically, without
-reshuffling. No Double, Split, persistence, reset, or playable UI is delivered.
+reshuffling. Double and Split remain pending M3. The playable UI connects these engine events.
 
 ## M2 table presentation
 
@@ -73,8 +73,20 @@ Concealed cards render a separate back with no rank/suit data in the DOM.
 Original SVG suits and CSS chips use no external assets. Controls use native
 buttons, accessible rejection descriptions and visible keyboard focus.
 
-The main app mounts an empty **Table preview** with all actions and chips disabled.
-Issue #6 owns real gameplay integration. No round can be played here yet.
+The main app mounts `PlayableRound`, which uses engine eligibility for each additive
+10/50/100 chip and action. `dispatchRound` is the shared typed event boundary;
+it advances dealer play and settlement immediately through engine transitions.
+Presentation receives totals and settlement values; it never decides payouts.
+Action positions stay stable so rapid repeated clicks cannot turn Deal into Hit
+or Stand into Next Hand. Below 10 chips, Reset Virtual Bankroll uses the browser's
+accessible confirmation: cancel preserves chips, confirm starts at exactly 1,000.
+
+Reload persistence is pending M3. Reloading discards any unfinished hand and starts
+a fresh 1,000-chip session; no unsettled or settled money is stored yet.
+The development-only `/e2e/fixtures/round.html?scenario=win` entry mounts the same
+playable component with deterministic injected state. Other scenarios are `loss`,
+`push`, `dealer-bust`, `player-natural`, `both-natural`, `dealer-natural`, `low`, and
+`reset`. Neither this entry nor its fixture data is imported by the production app.
 The test-only entry `/e2e/fixtures/table.html?scenario=two-hands` serves supplied
 presentation data through the local development server. Other scenarios are
 `betting`, `Win`, `Loss`, and `Push`. This entry is outside the production build;
@@ -132,7 +144,7 @@ the caller owns cleanup after exit. Forced termination can leave temporary files
 The CommonJS Vite config avoids the bundled ESM config loader's temporary writes
 in source/dependencies. Builds intentionally generate `dist/`.
 
-There is no gameplay persistence at M0: no localStorage, cookies, service worker,
+Reload persistence remains pending M3: no localStorage, cookies, service worker,
 or database. Runtime data/cache belongs under `FACTORY_RUNTIME_STATE`. Tests use
 fresh owned state/processes and fresh browser contexts for each attempt.
 
@@ -170,11 +182,13 @@ silently skip E2E or disable security controls to launch it.
 Browser smoke is a separate check. **No GitHub Actions workflows or remote required
 check names are configured.** Record local results rather than claiming remote CI.
 
-These checks prove the scaffold, the M1 engine, and the M2 presentation fixtures.
-Full PRD **AC-01–AC-12 remain future MVP acceptance**, including playable UI,
-Double/Split, accessibility, persistence,
-and deployment validation. Presentation fixtures do not prove playable-round journeys
-or full MVP acceptance. Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
+These checks cover the scaffold, engine, presentation and issue #6 playable rounds.
+The gameplay matrix uses desktop pointer clicks and real hasTouch-enabled taps at
+390 px, covering all seven deterministic outcome balances, Hit/Stand, concealment,
+repeated actions, Next Hand, reset, and a built-production-entry smoke. Five-width
+presentation/layout coverage remains separate; fixtures alone do not prove gameplay.
+Full MVP acceptance remains future work, including Double/Split, persistence,
+help/keyboard/motion milestones and live deployment validation. Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
 
 ## Production packaging source (not executed at M0)
 
@@ -226,5 +240,6 @@ These validate engine/workflow definitions, not game behavior. This delivery is
 the [issue #2 scaffold](https://github.com/gmui-gandg/muicraft-blackjack/issues/2)
 plus [issue #3 primitives](https://github.com/gmui-gandg/muicraft-blackjack/issues/3),
 [issue #4 ordinary-round engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/4),
-and [issue #5 table presentation](https://github.com/gmui-gandg/muicraft-blackjack/issues/5).
+[issue #5 table presentation](https://github.com/gmui-gandg/muicraft-blackjack/issues/5),
+and [issue #6 playable rounds](https://github.com/gmui-gandg/muicraft-blackjack/issues/6).
 No schedules, automatic merges, or deployments are enabled.

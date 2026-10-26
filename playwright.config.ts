@@ -7,8 +7,25 @@ export default defineConfig({
   timeout: 30_000,
   reporter: 'list',
   use: { browserName: 'chromium', trace: 'retain-on-failure' },
-  projects: [320, 375, 390, 768, 1440].map((width) => ({
-    name: `chromium-${width}`,
-    use: { viewport: { width, height: 900 } },
-  })),
+  projects: [
+    ...[320, 375, 390, 768, 1440].map((width) => ({
+      name: `chromium-${width}`,
+      testMatch: 'shell.spec.ts',
+      use: { viewport: { width, height: 900 } },
+    })),
+    {
+      name: 'gameplay-desktop',
+      testMatch: 'round.spec.ts',
+      use: { viewport: { width: 1440, height: 900 } },
+    },
+    {
+      name: 'gameplay-touch',
+      testMatch: 'round.spec.ts',
+      use: {
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+      },
+    },
+  ],
 });
