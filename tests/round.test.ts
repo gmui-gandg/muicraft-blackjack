@@ -450,7 +450,6 @@ function splitFixture(activeHandIndex: 0 | 1, aces = false): GameState {
     ? deal('A', '10', '5', '7', 'A', '6', '2')
     : deal('8', '10', '5', '7', '8', '6', '2');
   if (state.phase !== 'PLAYER_TURN') throw new Error('Expected player fixture');
-  const origin = aces ? 'split-aces' : 'original';
   return {
     ...state,
     balance: 980,
@@ -459,8 +458,17 @@ function splitFixture(activeHandIndex: 0 | 1, aces = false): GameState {
     round: {
       dealer: state.round.dealer,
       hands: [
-        { ...state.round.hands[0], origin, complete: activeHandIndex === 1 },
-        { cards: state.shoe.slice(0, 2), stake: 10, origin, complete: false },
+        {
+          ...state.round.hands[0],
+          splitAces: aces,
+          complete: activeHandIndex === 1,
+        },
+        {
+          cards: state.shoe.slice(0, 2),
+          stake: 10,
+          splitAces: aces,
+          complete: false,
+        },
       ],
     },
   };
@@ -530,13 +538,13 @@ describe('split hand-state unit coverage (no Split operation or integration jour
         hands: [
           {
             cards: source.shoe.slice(0, 2),
-            origin: 'original',
+            splitAces: false,
             stake: 10,
             complete: true,
           },
           {
             cards: source.shoe.slice(2, 4),
-            origin: 'original',
+            splitAces: false,
             stake: 10,
             complete: false,
           },

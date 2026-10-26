@@ -35,7 +35,7 @@ export type PlayerHand = Readonly<{
   cards: readonly Card[];
   stake: number;
   complete: boolean;
-  origin: 'original' | 'split-aces';
+  splitAces: boolean;
 }>;
 type Hands = readonly [PlayerHand] | readonly [PlayerHand, PlayerHand];
 type Round = Readonly<{
@@ -123,8 +123,7 @@ export function eligibility(state: GameState, event: GameEvent): Eligibility {
             ? state.round.hands[0]
             : state.round.hands[1];
         if (hand.complete) return { allowed: false, reason: 'HAND_COMPLETE' };
-        if (hand.origin === 'split-aces')
-          return { allowed: false, reason: 'SPLIT_ACES' };
+        if (hand.splitAces) return { allowed: false, reason: 'SPLIT_ACES' };
         if (event.type === 'DOUBLE') {
           if (hand.cards.length !== 2)
             return { allowed: false, reason: 'TWO_CARDS_REQUIRED' };
@@ -248,7 +247,7 @@ export function transition(
           cards: [playerFirst, playerSecond],
           stake: state.wager,
           complete: false,
-          origin: 'original',
+          splitAces: false,
         },
       ],
       dealer: [upcard, hole],

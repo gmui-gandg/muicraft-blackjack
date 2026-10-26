@@ -48,16 +48,18 @@ are replenished by the fixed threshold policy. Inject a `Uint32Source` into
 remaining sequence so transitions do not mutate the source shoe or input state.
 
 Opening naturals settle immediately, including required Ace/ten-value peeks.
-Otherwise `HIT`, `STAND` or `DOUBLE` drives `PLAYER_TURN`; 21 completes the hand and bust
-settles immediately without dealer draws. After a surviving hand completes,
-`DEALER_TURN` runs the dealer to S17 and enters `SETTLEMENT`; `SETTLE` pays once
+Otherwise `HIT`, `STAND` or `DOUBLE` drives `PLAYER_TURN`; 21 or bust completes
+the active hand. Completion advances to the next unfinished hand, if any. If all
+hands bust, losses settle immediately without dealer draws. Otherwise, after all
+player hands complete, `DEALER_TURN` runs the dealer to S17 and enters
+`SETTLEMENT`; `SETTLE` pays once
 and enters `ROUND_COMPLETE`. These explicit engine events do not depend on UI
 animation completion. `NEXT_HAND` moves table cards to discards and clears the wager without drawing or
 reshuffling; the subsequent Deal applies the shoe boundary policy, clearing
 discards when the full shoe is replenished.
 
 State owns remaining cards, discards, dealer cards, one or two hands with stakes
-and a split-ace marker, active hand index, completion, balance,
+and a `splitAces` flag, active hand index, completion, balance,
 and accepted-event history. A completed
 round includes outcome and returned chips: natural 2.5× stake, win 2×, push 1×,
 loss 0×. Rejected events preserve state identity and history. History records
