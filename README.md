@@ -5,6 +5,29 @@ runnable scaffold, with no playable game, bankroll, dealing, or storage.** The
 original spade and CSS artwork use no external assets or fonts. For entertainment
 only — virtual chips, no cash value.
 
+## M1 card, shoe, and scoring primitives
+
+`src/game` contains pure TypeScript primitives for `classic-six-deck-s17-v1`.
+The shell still has no gameplay controls. `createCards()` creates six standard
+decks with 312 immutable cards identified by deck, suit, and rank. `shuffle()`
+uses Fisher–Yates with crypto-backed rejection sampling; a `Uint32Source` can
+be injected for deterministic tests.
+
+`new Shoe()` shuffles a fresh six-deck shoe. `new Shoe(cards)` copies a unique
+injected sequence and draws from its front. `draw()` transfers one card out of
+the shoe, returning `undefined` on exhaustion without reshuffling. The caller
+must handle exhaustion; it never duplicates or fabricates a card.
+`prepareForRound(source?)` is exclusively a between-round operation: it replaces
+the shoe with a shuffled full six-deck set at 78 or fewer remaining cards and
+retains order above that threshold. Future round logic owns when to call it;
+ordinary draws never invoke it.
+
+`scoreHand(cards)` recomputes total, softness, and bust status. Natural detection
+requires explicit `original` or `split` provenance: only original two-card 21
+qualifies. This slice implements no dealer policy, settlement, or round engine.
+The immutable settings contain only the profile ID, six-deck count, and reshuffle
+threshold used by these primitives; other profile rules remain future work.
+
 ## Local development
 
 Use Node 24 (verified with **v24.22.1**) and npm (verified with **11.19.1**).
@@ -73,7 +96,8 @@ python3 harness/ci.py
 - `format:check`: Prettier for this scaffold and README; protected guidance is excluded.
 - `typecheck`: strict TypeScript for application, tests, and tooling, including the CJS config.
 - `test`: finite `vitest run`; rendered-shell, real startup/HTTP/socket/state, build identity,
-  and packaging source/configuration tests. Socket checks require Linux `ss` (iproute2).
+  packaging source/configuration tests, and deterministic card/shoe/scoring fixtures.
+  Socket checks require Linux `ss` (iproute2).
 - `build`: production static assets and exact `dist/build-id`.
 - `check`: lint, formatting, types, then build.
 - `test:e2e`: real Chromium smoke at 320, 375, 390, 768, and 1440 px, each with
@@ -88,11 +112,11 @@ silently skip E2E or disable security controls to launch it.
 Browser smoke is a separate check. **No GitHub Actions workflows or remote required
 check names are configured.** Record local results rather than claiming remote CI.
 
-These checks prove M0 only. PRD **AC-01–AC-12 and all deterministic game journeys
+These checks prove the M0 scaffold and the M1 primitives only. PRD **AC-01–AC-12 and all deterministic game journeys
 remain future MVP acceptance**, including full gameplay, accessibility, persistence,
 and deployment validation. A shell viewport check does not complete the game's
 responsive acceptance criterion. Future rules remain `classic-six-deck-s17-v1`
-as defined in PRD section 3; no alternative or partial rules are implemented.
+as defined in PRD section 3; no alternative ruleset is implemented.
 
 ## Production packaging source (not executed at M0)
 
@@ -141,5 +165,6 @@ python3 factory/consumer.py list
 ```
 
 These validate engine/workflow definitions, not game behavior. This delivery is
-limited to [issue #2](https://github.com/gmui-gandg/muicraft-blackjack/issues/2).
+the [issue #2 scaffold](https://github.com/gmui-gandg/muicraft-blackjack/issues/2)
+plus [issue #3 primitives](https://github.com/gmui-gandg/muicraft-blackjack/issues/3).
 No schedules, automatic merges, or deployments are enabled.
