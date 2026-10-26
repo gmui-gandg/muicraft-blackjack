@@ -1,4 +1,4 @@
-import { cardValue, type Card } from './cards.js';
+import type { Card } from './cards.js';
 import type { Uint32Source } from './random.js';
 import { CLASSIC_RULES } from './rules.js';
 import { isNatural, scoreHand } from './scoring.js';
@@ -36,7 +36,6 @@ export type PlayerHand = Readonly<{
 type Round = Readonly<{
   hands: readonly [PlayerHand];
   dealer: readonly Card[];
-  peeked: boolean;
 }>;
 type Common = Readonly<{
   balance: number;
@@ -185,7 +184,6 @@ export function transition(
         },
       ],
       dealer: [upcard, hole],
-      peeked: cardValue(upcard.rank) === 10 || upcard.rank === 'A',
     };
     const committed = {
       ...common,

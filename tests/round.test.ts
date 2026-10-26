@@ -110,35 +110,30 @@ describe('opening natural ledger and peeks', () => {
     cards: Rank[];
     balance: number;
     outcome: string;
-    peeked: boolean;
   }>([
     {
       cards: ['A', '9', 'K', '7'],
       balance: 1015,
       outcome: 'blackjack',
-      peeked: false,
     },
     {
       cards: ['A', 'A', 'K', 'K'],
       balance: 1000,
       outcome: 'push',
-      peeked: true,
     },
     {
       cards: ['9', 'A', '7', 'K'],
       balance: 990,
       outcome: 'loss',
-      peeked: true,
     },
     {
       cards: ['9', 'K', '7', 'A'],
       balance: 990,
       outcome: 'loss',
-      peeked: true,
     },
   ])(
     '$cards settles immediately at $balance',
-    ({ cards, balance, outcome, peeked }) => {
+    ({ cards, balance, outcome }) => {
       const state = deal(...cards);
       expect(state).toMatchObject({
         phase: 'ROUND_COMPLETE',
@@ -146,7 +141,6 @@ describe('opening natural ledger and peeks', () => {
         outcome,
         activeHandIndex: null,
       });
-      expect(state.round?.peeked).toBe(peeked);
       expect(state.round?.hands[0].complete).toBe(true);
       expect(state.shoe).toHaveLength(75);
       for (const type of ['HIT', 'STAND', 'SETTLE'] as const)
@@ -154,11 +148,12 @@ describe('opening natural ledger and peeks', () => {
     },
   );
   test.each<Rank>(['A', '10', 'J', 'Q', 'K'])(
-    'peeks at %s even without a natural',
+    'allows player actions after checking a non-natural %s opening',
     (upcard) => {
       const state = deal('8', upcard, '9', '6');
       expect(state.phase).toBe('PLAYER_TURN');
-      expect(state.round?.peeked).toBe(true);
+      expect(eligibility(state, { type: 'HIT' })).toEqual({ allowed: true });
+      expect(eligibility(state, { type: 'STAND' })).toEqual({ allowed: true });
     },
   );
 });
