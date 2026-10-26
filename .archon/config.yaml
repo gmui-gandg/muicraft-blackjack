@@ -4,9 +4,9 @@
 assistant: codex
 assistants:
   codex:
-    model: gpt-6-astra
+    model: gpt-6.1-sol
     modelReasoningEffort: medium
 tiers:
-  small: { provider: codex, model: gpt-6-astra, effort: medium }
-  medium: { provider: codex, model: gpt-6-astra, effort: medium }
-  large: { provider: codex, model: gpt-6-astra, effort: high }
+  small: { provider: codex, model: gpt-6-luna, effort: medium }
+  medium: { provider: codex, model: gpt-6-luna, effort: high }
+  large: { provider: codex, model: gpt-6.1-sol, effort: medium }
