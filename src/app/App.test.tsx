@@ -1,27 +1,33 @@
 // @vitest-environment jsdom
 import '../test/setup';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, test } from 'vitest';
 import { App } from './App';
 
-test('renders the M0 shell', () => {
-  render(<App />);
-  const main = within(screen.getByRole('main'));
+test('mounts an honest table preview with disabled gameplay', () => {
+  const { container } = render(<App />);
   expect(
-    main.getByRole('heading', { level: 1, name: 'MuiCraft Blackjack' }),
+    screen.getByRole('heading', { level: 1, name: 'MuiCraft Blackjack' }),
   ).toBeVisible();
-  expect(main.getByRole('heading', { name: 'Scaffold preview' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Table preview' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Blackjack table' })).toBeVisible();
   expect(
-    main.getByText(/Gameplay is coming in a later milestone/),
+    screen.getByText(/Take a seat. Gameplay is not connected yet/),
   ).toBeVisible();
   expect(
-    main.getByText(/For entertainment only — virtual chips, no cash value/),
+    screen.getByText(/For entertainment only — virtual chips, no cash value/),
   ).toBeVisible();
-});
-
-test('offers no game or wager controls before gameplay exists', () => {
-  render(<App />);
-  expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  const before = container.innerHTML;
+  expect(screen.getAllByRole('button')).toHaveLength(9);
+  for (const button of screen.getAllByRole('button')) {
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(
+      'Gameplay is not connected yet.',
+    );
+    fireEvent.click(button);
+  }
+  expect(container.innerHTML).toBe(before);
+  expect(screen.queryByRole('img')).not.toBeInTheDocument();
   expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
   expect(screen.queryByRole('slider')).not.toBeInTheDocument();
 });

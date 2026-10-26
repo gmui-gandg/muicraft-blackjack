@@ -1,9 +1,23 @@
+import { Table } from '../components/Table';
 import styles from './App.module.css';
+
+const unavailable = {
+  enabled: false,
+  reason: 'Gameplay is not connected yet.',
+} as const;
+const previewActions = [
+  'Deal',
+  'Hit',
+  'Stand',
+  'Double',
+  'Split',
+  'Next Hand',
+].map((label) => ({ ...unavailable, label, onActivate: () => {} }));
 
 export function App() {
   return (
     <main className={styles.page}>
-      <section className={styles.panel} aria-labelledby="title">
+      <header className={styles.header}>
         <svg
           className={styles.spade}
           viewBox="0 0 80 96"
@@ -15,21 +29,37 @@ export function App() {
             fill="currentColor"
           />
         </svg>
-        <p className={styles.eyebrow}>The MuiCraft collection</p>
-        <h1 id="title">
-          MuiCraft <span>Blackjack</span>
-        </h1>
-        <p className={styles.intro}>A little room for a good hand.</p>
-        <div className={styles.preview}>
-          <h2>Scaffold preview</h2>
-          <p>
-            The table is taking shape. Gameplay is coming in a later milestone.
-          </p>
+        <div>
+          <p className={styles.eyebrow}>The MuiCraft collection</p>
+          <h1>MuiCraft Blackjack</h1>
         </div>
-        <p className={styles.notice}>
-          For entertainment only — virtual chips, no cash value.
+      </header>
+      <section className={styles.preview} aria-labelledby="preview-title">
+        <h2 id="preview-title">Table preview</h2>
+        <p>
+          Take a seat. Gameplay is not connected yet, so chips and actions are
+          unavailable.
         </p>
+        <Table
+          balance={1000}
+          wager={0}
+          dealer={{ label: 'Dealer', total: 'Waiting for a deal', cards: [] }}
+          players={[
+            {
+              label: 'Your hand',
+              total: 'Your cards will appear here',
+              cards: [],
+            },
+          ]}
+          activeHand={null}
+          chips={unavailable}
+          onChip={() => {}}
+          actions={previewActions}
+        />
       </section>
+      <p className={styles.notice}>
+        For entertainment only — virtual chips, no cash value.
+      </p>
     </main>
   );
 }
