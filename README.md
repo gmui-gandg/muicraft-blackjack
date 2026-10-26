@@ -1,7 +1,7 @@
 # MuiCraft Blackjack
 
 A responsive preview shell for a future single-player blackjack game. **M0 is a
-runnable scaffold, with no playable game, bankroll, dealing, or storage.** The
+runnable UI scaffold; the pure engine is not wired to gameplay controls or storage.** The
 original spade and CSS artwork use no external assets or fonts. For entertainment
 only — virtual chips, no cash value.
 
@@ -20,14 +20,49 @@ exhaustion without reshuffling. The caller
 must handle exhaustion; it never duplicates or fabricates a card.
 `prepareForRound(source?)` is exclusively a between-round operation: it replaces
 the shoe with a shuffled full six-deck set at 78 or fewer remaining cards and
-retains order above that threshold. Future round logic owns when to call it;
+retains order above that threshold. The round engine owns when to call it;
 ordinary draws never invoke it.
 
 `scoreHand(cards)` recomputes total, softness, and bust status. Natural detection
 requires explicit `original` or `split` provenance: only original two-card 21
-qualifies. This slice implements no dealer policy, settlement, or round engine.
+qualifies.
 The immutable settings contain only the profile ID, six-deck count, and reshuffle
-threshold used by these primitives; other profile rules remain future work.
+threshold used by these primitives; the round engine applies the fixed wager,
+dealer, and payout rules from PRD section 3.
+
+## M1 ordinary-round engine
+
+`createGame(shoe?)` in `src/game/round.ts` starts a 1,000-chip session.
+`transition(state, event, nextUint32?)` returns `{ accepted: true, state }` or
+`{ accepted: false, state: originalState, reason }` with a typed rejection reason.
+`eligibility(state, event)` exposes the same
+phase and wager rules for controls. Double and Split return `NOT_IMPLEMENTED`.
+The engine has no React, animation, clock, storage, or DOM dependency.
+
+Select a wager with `PLACE_BET` (10–500 in multiples of 10, capped by balance),
+then `DEAL`. Selection reserves no money; Deal deducts the stake once and uses
+`Shoe.prepareForRound` before distributing player/upcard/player/hole card. To
+inject an opening sequence, pass a `Shoe` with more than 78 cards; shorter shoes
+are replenished by the fixed threshold policy. Inject a `Uint32Source` into
+`transition` for deterministic boundary shuffles. `Shoe.snapshot()` copies the
+remaining sequence so transitions do not mutate the source shoe or input state.
+
+Opening naturals settle immediately, including required Ace/ten-value peeks.
+Otherwise `HIT` or `STAND` drives `PLAYER_TURN`; 21 completes the hand and bust
+settles immediately without dealer draws. After a surviving hand completes,
+`DEALER_TURN` runs the dealer to S17 and enters `SETTLEMENT`; `SETTLE` pays once
+and enters `ROUND_COMPLETE`. These explicit engine events do not depend on UI
+animation completion. `NEXT_HAND` moves table cards to discards and clears the wager without drawing or
+reshuffling; the subsequent Deal applies the shoe boundary policy, clearing
+discards when the full shoe is replenished.
+
+State owns remaining cards, discards, dealer cards, the one original hand and stake,
+active hand index, completion, balance, and accepted-event history. A completed
+round includes outcome and returned chips: natural 2.5× stake, win 2×, push 1×,
+loss 0×. Rejected events preserve state identity and history. History records
+accepted commands; automatic natural/bust settlement is part of that command.
+An exhausted injected mid-round shoe rejects the draw atomically, without
+reshuffling. No Double, Split, persistence, reset, or playable UI is delivered.
 
 ## Local development
 
@@ -113,8 +148,9 @@ silently skip E2E or disable security controls to launch it.
 Browser smoke is a separate check. **No GitHub Actions workflows or remote required
 check names are configured.** Record local results rather than claiming remote CI.
 
-These checks prove the M0 scaffold and the M1 primitives only. PRD **AC-01–AC-12 and all deterministic game journeys
-remain future MVP acceptance**, including full gameplay, accessibility, persistence,
+These checks prove the M0 scaffold and the M1 primitives and ordinary-round engine.
+Full PRD **AC-01–AC-12 remain future MVP acceptance**, including playable UI,
+Double/Split, accessibility, persistence,
 and deployment validation. A shell viewport check does not complete the game's
 responsive acceptance criterion. Future rules remain `classic-six-deck-s17-v1`
 as defined in PRD section 3; no alternative ruleset is implemented.
@@ -167,5 +203,6 @@ python3 factory/consumer.py list
 
 These validate engine/workflow definitions, not game behavior. This delivery is
 the [issue #2 scaffold](https://github.com/gmui-gandg/muicraft-blackjack/issues/2)
-plus [issue #3 primitives](https://github.com/gmui-gandg/muicraft-blackjack/issues/3).
+plus [issue #3 primitives](https://github.com/gmui-gandg/muicraft-blackjack/issues/3)
+and [issue #4 ordinary-round engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/4).
 No schedules, automatic merges, or deployments are enabled.
