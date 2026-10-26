@@ -1,72 +1,46 @@
 .page {
+  width: min(100%, 1200px);
+  margin: auto;
   min-height: 100svh;
-  display: grid;
-  place-items: center;
-  padding: clamp(1rem, 4vw, 3rem);
-  background: radial-gradient(ellipse at 50% 20%, #0c5a4366, transparent 70%);
+  padding: clamp(0.75rem, 3vw, 2rem);
 }
-
-.panel {
-  width: min(100%, 46rem);
-  padding: clamp(1.5rem, 6vw, 4rem);
-  text-align: center;
-  background: #0b2822;
-  border: 1px solid #d9be7a55;
-  border-radius: 1.5rem;
-  box-shadow: 0 1.5rem 5rem #0004;
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-block: 1rem 1.5rem;
 }
-
 .spade {
-  width: 3.5rem;
-  height: 4.2rem;
+  width: 2rem;
+  height: 2.5rem;
+  flex-shrink: 0;
   color: #d9be7a;
-  margin-bottom: 1rem;
 }
-
 .eyebrow {
   color: #d9be7a;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 0.75rem;
-  font-weight: 600;
+  letter-spacing: 0.12em;
+  font-size: 0.7rem;
+  margin: 0;
 }
-
-.panel h1 {
-  font-size: clamp(2rem, 7vw, 3.75rem);
-  letter-spacing: -0.045em;
-  line-height: 1.1;
-  margin: 1rem 0;
+.header h1 {
+  font-size: clamp(1.35rem, 4vw, 2rem);
+  letter-spacing: -0.04em;
+  margin: 0;
 }
-
-.panel h1 span {
-  display: block;
-}
-
-.intro {
-  color: #d3ded8;
-  font-size: clamp(1rem, 3vw, 1.2rem);
-}
-
-.preview {
-  border-block: 1px solid #d9be7a33;
-  margin: 2.5rem 0 1.5rem;
-  padding: 1.5rem 0;
-}
-
 .preview h2 {
-  font-size: 1rem;
+  font-size: 1.15rem;
   color: #d9be7a;
-  margin: 0 0 0.5rem;
+  margin: 0;
 }
-
-.preview p {
-  margin: 0 auto;
-  max-width: 30ch;
+.preview > p {
+  color: #d3ded8;
+  margin: 0.5rem 0 1.5rem;
+  max-width: 65ch;
 }
-
 .notice {
-  font-size: 0.8rem;
   color: #bfcec7;
-  margin: 0 auto;
-  max-width: 38ch;
+  font-size: 0.8rem;
+  text-align: center;
+  padding-block: 1rem;
 }

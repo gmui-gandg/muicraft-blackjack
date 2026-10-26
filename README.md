@@ -1,14 +1,14 @@
 # MuiCraft Blackjack
 
-A responsive preview shell for a future single-player blackjack game. **M0 is a
-runnable UI scaffold; the pure engine is not wired to gameplay controls or storage.** The
+A responsive table preview for a future single-player blackjack game. **Gameplay
+controls are disabled; the pure engine is not wired to the table or storage.** The
 original spade and CSS artwork use no external assets or fonts. For entertainment
 only — virtual chips, no cash value.
 
 ## M1 card, shoe, and scoring primitives
 
 `src/game` contains pure TypeScript primitives for `classic-six-deck-s17-v1`.
-The shell still has no gameplay controls. `createCards()` creates six standard
+The preview has disabled gameplay controls. `createCards()` creates six standard
 decks with 312 immutable cards identified by deck, suit, and rank. `shuffle()`
 uses Fisher–Yates with crypto-backed rejection sampling; a `Uint32Source` can
 be injected for deterministic tests.
@@ -63,6 +63,28 @@ loss 0×. Rejected events preserve state identity and history. History records
 accepted commands; automatic natural/bust settlement is part of that command.
 An exhausted injected mid-round shoe rejects the draw atomically, without
 reshuffling. No Double, Split, persistence, reset, or playable UI is delivered.
+
+## M2 table presentation
+
+`src/components/Table.tsx` accepts supplied balance, wager, hand totals, cards,
+active-hand index, settlement values, eligibility explanations and callbacks.
+It imports no engine code and calculates no totals, outcomes or accounting.
+Concealed cards render a separate back with no rank/suit data in the DOM.
+Original SVG suits and CSS chips use no external assets. Controls use native
+buttons, accessible rejection descriptions and visible keyboard focus.
+
+The main app mounts an empty **Table preview** with all actions and chips disabled.
+Issue #6 owns real gameplay integration. No round can be played here yet.
+The test-only entry `/e2e/fixtures/table.html?scenario=two-hands` serves supplied
+presentation data through the local development server. Other scenarios are
+`betting`, `Win`, `Loss`, and `Push`. This entry is outside the production build;
+there are no fixture selectors or debug controls on the product page.
+
+RTL tests cover callbacks, native disabled behavior, supplied outcomes and card
+concealment. Browser fixtures measure all five widths, target sizes, card ratios,
+keyboard focus and two-hand layout. To save JSON observations and screenshots
+outside the checkout, set `M2_EVIDENCE_DIR` when running `npm run test:e2e`.
+Fixture coverage is independent of the engine and is not playable-round coverage.
 
 ## Local development
 
@@ -148,12 +170,11 @@ silently skip E2E or disable security controls to launch it.
 Browser smoke is a separate check. **No GitHub Actions workflows or remote required
 check names are configured.** Record local results rather than claiming remote CI.
 
-These checks prove the M0 scaffold and the M1 primitives and ordinary-round engine.
+These checks prove the scaffold, the M1 engine, and the M2 presentation fixtures.
 Full PRD **AC-01–AC-12 remain future MVP acceptance**, including playable UI,
 Double/Split, accessibility, persistence,
-and deployment validation. A shell viewport check does not complete the game's
-responsive acceptance criterion. Future rules remain `classic-six-deck-s17-v1`
-as defined in PRD section 3; no alternative ruleset is implemented.
+and deployment validation. Presentation fixtures do not prove playable-round journeys
+or full MVP acceptance. Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
 
 ## Production packaging source (not executed at M0)
 
@@ -203,6 +224,7 @@ python3 factory/consumer.py list
 
 These validate engine/workflow definitions, not game behavior. This delivery is
 the [issue #2 scaffold](https://github.com/gmui-gandg/muicraft-blackjack/issues/2)
-plus [issue #3 primitives](https://github.com/gmui-gandg/muicraft-blackjack/issues/3)
-and [issue #4 ordinary-round engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/4).
+plus [issue #3 primitives](https://github.com/gmui-gandg/muicraft-blackjack/issues/3),
+[issue #4 ordinary-round engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/4),
+and [issue #5 table presentation](https://github.com/gmui-gandg/muicraft-blackjack/issues/5).
 No schedules, automatic merges, or deployments are enabled.
