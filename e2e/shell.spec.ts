@@ -154,6 +154,13 @@ for (const { scenario } of presentationFixtures) {
       red: '#bd373c',
       background: 'rgb(11, 31, 28)',
     });
+    const surface = table.locator(':scope > div').filter({
+      has: page.getByRole('region', { name: 'Dealer', exact: true }),
+    });
+    await expect(surface).toHaveCSS('background-color', 'rgb(12, 90, 67)');
+    const surfaceBackground = await surface.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
     const dimensions = await page.evaluate(() => ({
       scroll: document.documentElement.scrollWidth,
       client: document.documentElement.clientWidth,
@@ -272,6 +279,7 @@ for (const { scenario } of presentationFixtures) {
     const observation = {
       scenario,
       palette,
+      surfaceBackground,
       dimensions,
       targets,
       cards,
