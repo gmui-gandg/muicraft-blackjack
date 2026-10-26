@@ -1,0 +1,72 @@
+.page {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: radial-gradient(ellipse at 50% 20%, #0c5a4366, transparent 70%);
+}
+
+.panel {
+  width: min(100%, 46rem);
+  padding: clamp(1.5rem, 6vw, 4rem);
+  text-align: center;
+  background: #0b2822;
+  border: 1px solid #d9be7a55;
+  border-radius: 1.5rem;
+  box-shadow: 0 1.5rem 5rem #0004;
+}
+
+.spade {
+  width: 3.5rem;
+  height: 4.2rem;
+  color: #d9be7a;
+  margin-bottom: 1rem;
+}
+
+.eyebrow {
+  color: #d9be7a;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.panel h1 {
+  font-size: clamp(2rem, 7vw, 3.75rem);
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+  margin: 1rem 0;
+}
+
+.panel h1 span {
+  display: block;
+}
+
+.intro {
+  color: #d3ded8;
+  font-size: clamp(1rem, 3vw, 1.2rem);
+}
+
+.preview {
+  border-block: 1px solid #d9be7a33;
+  margin: 2.5rem 0 1.5rem;
+  padding: 1.5rem 0;
+}
+
+.preview h2 {
+  font-size: 1rem;
+  color: #d9be7a;
+  margin: 0 0 0.5rem;
+}
+
+.preview p {
+  margin: 0 auto;
+  max-width: 30ch;
+}
+
+.notice {
+  font-size: 0.8rem;
+  color: #bfcec7;
+  margin: 0 auto;
+  max-width: 38ch;
+}
