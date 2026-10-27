@@ -5,7 +5,7 @@ import { expect, test, vi } from 'vitest';
 import { App } from './App';
 import { PlayableRound } from './PlayableRound';
 import { dispatchRound } from './dispatch';
-import { eligibility, type GameEvent } from '../game/round';
+import { eligibility, transition, type GameEvent } from '../game/round';
 import { roundCases, roundState } from '../test/round-fixtures';
 
 const click = (name: string) =>
@@ -112,10 +112,14 @@ test('500 maximum and stale/repeated lifecycle commands cannot commit or pay twi
   for (const event of events) {
     const allowed = eligibility(state, event).allowed;
     const next = dispatchRound(state, event);
-    if (!allowed) expect(next).toBe(state);
-    state = next;
-    if (event.type !== 'PLACE_BET')
-      expect(dispatchRound(state, event)).toBe(state);
+    expect(next.accepted).toBe(allowed);
+    if (!allowed) expect(next.state).toBe(state);
+    state = next.state;
+    if (event.type !== 'PLACE_BET') {
+      const repeated = dispatchRound(state, event);
+      expect(repeated.accepted).toBe(false);
+      expect(repeated.state).toBe(state);
+    }
   }
   expect(state.balance).toBe(1010);
 });
@@ -140,10 +144,10 @@ test('depleted reset cancel preserves balance and confirm restores exactly 1000'
 test('rendered control eligibility agrees with engine in betting, player turn and completed states', () => {
   const betting = roundState(['10', '10', '8', '7']);
   const player = dispatchRound(
-    dispatchRound(betting, { type: 'PLACE_BET', amount: 10 }),
+    dispatchRound(betting, { type: 'PLACE_BET', amount: 10 }).state,
     { type: 'DEAL' },
-  );
-  const completed = dispatchRound(player, { type: 'STAND' });
+  ).state;
+  const completed = dispatchRound(player, { type: 'STAND' }).state;
   for (const state of [
     betting,
     player,
@@ -172,4 +176,81 @@ test('rendered control eligibility agrees with engine in betting, player turn an
     }
     view.unmount();
   }
+});
+
+test.each([0, 1])(
+  'Split preserves typed dealer exhaustion with %i cards left',
+  (remaining) => {
+    const betting = transition(
+      roundState(['A', '5', 'A', '6', 'K', '9', '2']),
+      {
+        type: 'PLACE_BET',
+        amount: 10,
+      },
+    ).state;
+    const dealt = transition(betting, { type: 'DEAL' }).state;
+    const player = { ...dealt, shoe: dealt.shoe.slice(0, 2 + remaining) };
+    const before = structuredClone(player);
+    const split = transition(player, { type: 'SPLIT' });
+    expect(split.accepted).toBe(true);
+    expect(split.state.phase).toBe('DEALER_TURN');
+    const failure = transition(split.state, { type: 'DEALER_TURN' });
+    expect(failure).toEqual({
+      accepted: false,
+      reason: 'SHOE_EXHAUSTED',
+      state: split.state,
+    });
+    const result = dispatchRound(player, { type: 'SPLIT' });
+    expect(result).toEqual(failure);
+    expect(player).toEqual(before);
+    expect(result.state.balance).toBe(980);
+    expect(result.state.shoe).toHaveLength(remaining);
+    expect(result.state.round?.hands.map((hand) => hand.cards.length)).toEqual([
+      2, 2,
+    ]);
+    expect(result.state.round?.dealer).toBe(player.round?.dealer);
+    expect(result.state.discards).toBe(player.discards);
+    const owned = (state: typeof player) => [
+      ...state.shoe,
+      ...state.discards,
+      ...(state.round?.hands.flatMap((hand) => hand.cards) ?? []),
+      ...(state.round?.dealer ?? []),
+    ];
+    const originalCards = owned(player);
+    const retainedCards = owned(result.state);
+    expect(retainedCards).toHaveLength(originalCards.length);
+    expect(new Set(retainedCards).size).toBe(originalCards.length);
+    for (const card of originalCards) expect(retainedCards).toContain(card);
+    expect(result.state.history.map((event) => event.type)).toEqual([
+      'PLACE_BET',
+      'DEAL',
+      'SPLIT',
+    ]);
+  },
+);
+
+test('dispatcher preserves the typed initial rejection and input identity', () => {
+  const state = roundState([]);
+  const result = dispatchRound(state, { type: 'SPLIT' });
+  expect(result).toEqual({ accepted: false, reason: 'WRONG_PHASE', state });
+  expect(result.state).toBe(state);
+});
+
+test('playable caller displays a failed dealer advance without claiming settlement', () => {
+  const betting = dispatchRound(roundState(['10', '5', '8', '6']), {
+    type: 'PLACE_BET',
+    amount: 10,
+  }).state;
+  const player = dispatchRound(betting, { type: 'DEAL' }).state;
+  render(<PlayableRound initialState={() => ({ ...player, shoe: [] })} />);
+  click('Stand');
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    'No cards remain in this shoe.',
+  );
+  expect(balance()).toHaveTextContent('990');
+  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Next Hand' })).toBeDisabled();
+  expect(
+    within(screen.getByRole('region', { name: 'Dealer' })).getAllByRole('img'),
+  ).toHaveLength(2);
 });

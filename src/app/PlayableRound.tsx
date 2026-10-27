@@ -6,6 +6,7 @@ import {
   type GameEvent,
   type GameState,
   type RejectionReason,
+  type Transition,
 } from '../game/round';
 import { scoreHand } from '../game/scoring';
 import { dispatchRound } from './dispatch';
@@ -35,9 +36,13 @@ export function PlayableRound({
 }: {
   initialState?: () => GameState;
 }) {
-  const [state, setState] = useState(initialState);
+  const [result, setResult] = useState<Transition>(() => ({
+    accepted: true,
+    state: initialState(),
+  }));
+  const state = result.state;
   const dispatch = (event: GameEvent) =>
-    setState((current) => dispatchRound(current, event));
+    setResult((current) => dispatchRound(current.state, event));
   const action = (label: string, event: GameEvent): Control => ({
     label,
     ...controlState(state, event),
@@ -62,73 +67,76 @@ export function PlayableRound({
       enabled: true,
       onActivate: () => {
         if (window.confirm('Reset Virtual Bankroll to 1,000 chips?'))
-          setState(createGame());
+          setResult({ accepted: true, state: createGame() });
       },
     });
   }
   return (
-    <Table
-      balance={state.balance}
-      wager={state.wager}
-      dealer={{
-        label: 'Dealer',
-        total: dealerCards.length
-          ? `${concealed ? 'Visible total' : 'Total'}: ${scoreHand(visibleDealer).total}`
-          : 'Waiting for a deal',
-        cards: dealerCards.map((card, index) =>
-          concealed && index === 1
-            ? { concealed: true }
-            : { concealed: false, rank: card.rank, suit: card.suit },
-        ),
-      }}
-      players={[
-        {
-          label: 'Your hand',
-          total: hand
-            ? `Total: ${scoreHand(hand.cards).total}`
-            : 'Your cards will appear here',
-          cards:
-            hand?.cards.map((card) => ({
-              concealed: false,
-              rank: card.rank,
-              suit: card.suit,
-            })) ?? [],
-          ...(hand ? { stake: hand.stake } : {}),
-          ...(state.phase === 'ROUND_COMPLETE'
-            ? {
-                outcome: {
-                  label:
-                    state.outcome === 'loss'
-                      ? 'Loss'
-                      : state.outcome === 'push'
-                        ? 'Push'
-                        : 'Win',
-                  returned: state.returned,
-                  net: state.returned - state.round.hands[0].stake,
-                },
-              }
-            : {}),
-        },
-      ]}
-      activeHand={state.activeHandIndex}
-      chips={{
-        10: controlState(state, {
-          type: 'PLACE_BET',
-          amount: state.wager + 10,
-        }),
-        50: controlState(state, {
-          type: 'PLACE_BET',
-          amount: state.wager + 50,
-        }),
-        100: controlState(state, {
-          type: 'PLACE_BET',
-          amount: state.wager + 100,
-        }),
-      }}
-      onChip={(value) =>
-        dispatch({ type: 'PLACE_BET', amount: state.wager + value })
-      }
-      actions={actions}
-    />
+    <>
+      {!result.accepted && <p role="alert">{reasons[result.reason]}</p>}
+      <Table
+        balance={state.balance}
+        wager={state.wager}
+        dealer={{
+          label: 'Dealer',
+          total: dealerCards.length
+            ? `${concealed ? 'Visible total' : 'Total'}: ${scoreHand(visibleDealer).total}`
+            : 'Waiting for a deal',
+          cards: dealerCards.map((card, index) =>
+            concealed && index === 1
+              ? { concealed: true }
+              : { concealed: false, rank: card.rank, suit: card.suit },
+          ),
+        }}
+        players={[
+          {
+            label: 'Your hand',
+            total: hand
+              ? `Total: ${scoreHand(hand.cards).total}`
+              : 'Your cards will appear here',
+            cards:
+              hand?.cards.map((card) => ({
+                concealed: false,
+                rank: card.rank,
+                suit: card.suit,
+              })) ?? [],
+            ...(hand ? { stake: hand.stake } : {}),
+            ...(state.phase === 'ROUND_COMPLETE'
+              ? {
+                  outcome: {
+                    label:
+                      state.outcome === 'loss'
+                        ? 'Loss'
+                        : state.outcome === 'push'
+                          ? 'Push'
+                          : 'Win',
+                    returned: state.returned,
+                    net: state.returned - state.round.hands[0].stake,
+                  },
+                }
+              : {}),
+          },
+        ]}
+        activeHand={state.activeHandIndex}
+        chips={{
+          10: controlState(state, {
+            type: 'PLACE_BET',
+            amount: state.wager + 10,
+          }),
+          50: controlState(state, {
+            type: 'PLACE_BET',
+            amount: state.wager + 50,
+          }),
+          100: controlState(state, {
+            type: 'PLACE_BET',
+            amount: state.wager + 100,
+          }),
+        }}
+        onChip={(value) =>
+          dispatch({ type: 'PLACE_BET', amount: state.wager + value })
+        }
+        actions={actions}
+      />
+    </>
   );
 }
