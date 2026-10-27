@@ -1,6 +1,7 @@
 import {
   type GameState,
   isValidWager,
+  settledBankroll,
   STARTING_BANKROLL,
   WAGER_LIMITS,
 } from '../game/round.js';
@@ -156,11 +157,11 @@ export function createSessionStorage(
     commitSettled(
       state: Extract<GameState, { phase: 'ROUND_COMPLETE' }>,
     ): boolean {
-      if (state.phase !== 'ROUND_COMPLETE' || !bankroll(state.balance))
-        return false;
+      const balance = settledBankroll(state);
+      if (!bankroll(balance)) return false;
       record = {
         ...record,
-        settledBankroll: state.balance,
+        settledBankroll: balance,
         roundPending: false,
       };
       persist();

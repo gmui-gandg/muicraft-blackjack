@@ -52,6 +52,9 @@ type Common = Readonly<{
   discards: readonly Card[];
   history: readonly GameEvent[];
 }>;
+const completionProof = Symbol('engine completion');
+const settledBalances = new WeakMap<object, number>();
+
 export type GameState = Common &
   (
     | Readonly<{ phase: 'BETTING'; round: null; activeHandIndex: null }>
@@ -68,12 +71,23 @@ export type GameState = Common &
       }>
     | Readonly<{
         phase: 'ROUND_COMPLETE';
+        [completionProof]: true;
         round: Round;
         activeHandIndex: null;
         outcome: Outcome | 'mixed';
         returned: number;
       }>
   );
+export function settledBankroll(
+  state: Extract<GameState, { phase: 'ROUND_COMPLETE' }>,
+): number | undefined {
+  const issued = settledBalances.get(state);
+  if (issued === undefined) return undefined;
+  return state.phase === 'ROUND_COMPLETE' && issued === state.balance
+    ? issued
+    : undefined;
+}
+
 export type Transition =
   | Readonly<{ accepted: true; state: GameState }>
   | Readonly<{
@@ -221,15 +235,20 @@ function settle(state: Common, round: Round): GameState {
   const outcome = outcomes.every((value) => value === outcomes[0])
     ? outcomes[0]!
     : 'mixed';
-  return {
+  const completed: Extract<GameState, { phase: 'ROUND_COMPLETE' }> = {
     ...state,
     phase: 'ROUND_COMPLETE',
+    [completionProof]: true,
     round: { ...round, hands },
     activeHandIndex: null,
     balance: state.balance + returned,
     outcome,
     returned,
   };
+  // Provenance must not change ordinary game snapshots or structured clones.
+  Object.defineProperty(completed, completionProof, { enumerable: false });
+  settledBalances.set(completed, completed.balance);
+  return completed;
 }
 
 function advancePlayer(state: Common, round: Round): GameState {

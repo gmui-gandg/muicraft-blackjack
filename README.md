@@ -234,14 +234,16 @@ The public operations are:
   system reduced-motion preference; `system` follows it, explicit overrides win.
 - `beginRound()` writes only `roundPending: true` against the last settled funds.
   It accepts no balance. Call it before beginning an unfinished hand.
-- `commitSettled(completedState)` requires the full engine `ROUND_COMPLETE`
-  union member, including round, outcome and returned funds. A phase/number pair
-  is not a valid typed input. Runtime phase and safe-balance guards return false
-  without mutation for unfinished or invalid financial inputs. The future caller
-  supplies the engine's whole-round completion, including all split hands.
-  Successful commits clear the marker; repeated commits of the same balance do
-  not apply a payout again. This is a typed integration contract, not authentication
-  of caller-created game state or tamper-resistant storage.
+- `commitSettled(completedState)` requires the exact engine-issued `ROUND_COMPLETE`
+  object, including completion of all split hands. A private type brand prevents
+  ordinary typed fabrication; an in-memory weak registry verifies object identity
+  and the balance captured by the engine at settlement. Fabricated, copied,
+  deserialized, balance-altered, unfinished or financially invalid inputs return
+  false without changing funds or the pending marker. Pass the original completion
+  directly, without spreading or serializing it. Successful commits clear the
+  marker; repeating the same completion does not apply a payout again. Proof is
+  process-local and never stored. Browser storage remains user-modifiable; this
+  integration guard does not make local scores tamper-resistant.
 - `updatePreferences(preferences)` validates and copies the complete preference
   object; it never reads gameplay funds or clears the marker. Invalid updates
   return false without mutation.

@@ -1,5 +1,10 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { type GameState, transition } from '../src/game/round.js';
+import {
+  type GameEvent,
+  type GameState,
+  transition,
+} from '../src/game/round.js';
+import { type Rank } from '../src/game/cards.js';
 import { roundState } from '../src/test/round-fixtures.js';
 import {
   AUDIO_SETTINGS,
@@ -74,6 +79,120 @@ describe('settled session storage boundary', () => {
       Parameters<typeof session.commitSettled>[0]
     >();
   });
+  it.each([
+    'full fabrication',
+    'phase and balance',
+    'copy',
+    'structured clone',
+    'changed copy',
+    'mutated original',
+  ] as const)(
+    'refuses %s without changing settled funds or pending marker',
+    (kind) => {
+      const f = fixture();
+      const session = f.open();
+      session.beginRound();
+      const before = f.data.get(SESSION_KEY);
+      const genuine = completed();
+      const fabricated = {
+        phase: 'ROUND_COMPLETE' as const,
+        balance: 900000,
+        wager: genuine.wager,
+        shoe: genuine.shoe,
+        discards: genuine.discards,
+        history: genuine.history,
+        round: genuine.round,
+        activeHandIndex: null,
+        outcome: genuine.outcome,
+        returned: genuine.returned,
+      };
+      let result: boolean;
+      if (kind === 'full fabrication') {
+        // @ts-expect-error Only the engine can issue a branded completion.
+        result = session.commitSettled(fabricated);
+      } else if (kind === 'phase and balance') {
+        // @ts-expect-error JavaScript callers can bypass the completion type.
+        result = session.commitSettled({
+          phase: 'ROUND_COMPLETE',
+          balance: 900000,
+        });
+      } else if (kind === 'structured clone') {
+        result = session.commitSettled(structuredClone(genuine));
+      } else if (kind === 'mutated original') {
+        Object.assign(genuine, { balance: 900000 });
+        result = session.commitSettled(genuine);
+      } else {
+        result = session.commitSettled({
+          ...genuine,
+          balance: kind === 'copy' ? genuine.balance : 900000,
+        });
+      }
+      expect(result).toBe(false);
+      expect(session.snapshot().settledBankroll).toBe(1000);
+      expect(f.data.get(SESSION_KEY)).toBe(before);
+      expect(f.open().snapshot().notices).toContain(
+        'Unfinished hand discarded. Restored the last settled bankroll.',
+      );
+    },
+  );
+  it.each<{
+    name: string;
+    ranks: Rank[];
+    events: Exclude<GameEvent['type'], 'PLACE_BET'>[];
+    balance: number;
+  }>([
+    {
+      name: 'ordinary settlement',
+      ranks: ['10', '10', '8', '7'],
+      events: ['STAND', 'DEALER_TURN', 'SETTLE'],
+      balance: 1010,
+    },
+    {
+      name: 'all bust shortcut',
+      ranks: ['10', '10', '6', '7', 'K'],
+      events: ['HIT'],
+      balance: 990,
+    },
+    {
+      name: 'double',
+      ranks: ['10', '10', '6', '7', '5'],
+      events: ['DOUBLE', 'DEALER_TURN', 'SETTLE'],
+      balance: 1020,
+    },
+    {
+      name: 'split aces',
+      ranks: ['A', '10', 'A', '7', 'K', '9'],
+      events: ['SPLIT', 'DEALER_TURN', 'SETTLE'],
+      balance: 1020,
+    },
+    {
+      name: 'split all bust shortcut',
+      ranks: ['8', '10', '8', '7', '6', '6', 'K', 'K'],
+      events: ['SPLIT', 'HIT', 'HIT'],
+      balance: 980,
+    },
+  ])(
+    'accepts the engine-issued $name completion',
+    ({ ranks, events, balance }) => {
+      let state = step(bet(roundState(ranks)), 'DEAL');
+      for (const type of events) {
+        const result = transition(state, { type });
+        if (!result.accepted) throw new Error(result.reason);
+        state = result.state;
+      }
+      if (state.phase !== 'ROUND_COMPLETE')
+        throw new Error('Expected completion');
+      const f = fixture();
+      const session = f.open();
+      session.beginRound();
+      expect(session.commitSettled(state)).toBe(true);
+      expect(session.commitSettled(state)).toBe(true);
+      expect(f.open().snapshot()).toMatchObject({
+        settledBankroll: balance,
+        notices: [],
+      });
+    },
+  );
   it('defaults empty storage, commits 1015 and preserves wager 50 across recreation', () => {
     const f = fixture();
     const session = f.open();
@@ -151,6 +270,22 @@ describe('settled session storage boundary', () => {
       notices: [],
     });
     expect(f.saved()).toEqual({ ...record, settledBankroll: 990 });
+  });
+
+  it('rejects an engine-issued completion outside the safe financial domain', () => {
+    const state = step(
+      bet(roundState(['A', '9', 'K', '7'], Number.MAX_SAFE_INTEGER)),
+      'DEAL',
+    );
+    if (state.phase !== 'ROUND_COMPLETE')
+      throw new Error('Expected completion');
+    const f = fixture();
+    const session = f.open();
+    session.beginRound();
+    const before = f.data.get(SESSION_KEY);
+    expect(session.commitSettled(state)).toBe(false);
+    expect(session.snapshot().settledBankroll).toBe(1000);
+    expect(f.data.get(SESSION_KEY)).toBe(before);
   });
 
   it.each([-1, 1.5, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1])(
