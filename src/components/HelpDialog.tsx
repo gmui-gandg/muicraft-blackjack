@@ -73,7 +73,7 @@ export function HelpDialog({
             Aces count as 11 or 1; face cards count as 10. An unsplit opening
             Ace and ten-value card is a natural blackjack paying 3:2. Ordinary
             wins pay 1:1; losses forfeit the stake; pushes return it. Both
-            opening naturals push.
+            opening naturals push; with only a dealer natural, the player loses.
           </li>
           <li>
             One funded same-rank split only, at most two hands. Q + Q qualifies;

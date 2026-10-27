@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '../test/setup';
 import { StrictMode } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { PlayableRound } from './PlayableRound';
 import { createPlaySession } from './session';
@@ -203,6 +203,29 @@ function stubDialog() {
     },
   });
 }
+
+test('Help visibly explains every fixed-rule claim and opening-peek consequence', () => {
+  stubDialog();
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Help' }));
+  const help = within(screen.getByRole('dialog'));
+  expect(
+    help.getByRole('heading', { name: 'classic-six-deck-s17-v1' }),
+  ).toBeVisible();
+  for (const claim of [
+    'For entertainment only — virtual chips, no cash value',
+    'Local balances are editable by the player and are not verified scores.',
+    '6 standard decks (312 cards). Shuffle at start; reshuffle before a new round at 78 or fewer cards remaining, never intentionally mid-round.',
+    'Dealer hits through 16 and stands on all 17, including soft 17 (S17). Opening peeks check for dealer blackjack with an Ace or ten-value upcard before player actions.',
+    'Aces count as 11 or 1; face cards count as 10. An unsplit opening Ace and ten-value card is a natural blackjack paying 3:2. Ordinary wins pay 1:1; losses forfeit the stake; pushes return it. Both opening naturals push; with only a dealer natural, the player loses.',
+    'One funded same-rank split only, at most two hands. Q + Q qualifies; 10 + J does not. Split aces receive one card each then automatically stand. Split 21 pays ordinary 1:1, never natural 3:2.',
+    'Double on the first two cards with funds for an equal additional stake, including non-ace split hands: draw exactly one card then automatically stand. Each split hand settles independently.',
+    'Start with 1,000 virtual chips. Wagers: 10–500 in multiples of 10, capped by available balance. Presets add 10, 50 or 100 chips. No insurance, surrender or side bets.',
+    '21 or bust ends the hand. Next Hand is explicit. A depleted bankroll requires confirmed Reset Virtual Bankroll.',
+  ]) {
+    expect(help.getByText(claim)).toBeVisible();
+  }
+});
 
 test('Help contains focus and commands, restores opener and does not re-arm held keys', () => {
   stubDialog();
