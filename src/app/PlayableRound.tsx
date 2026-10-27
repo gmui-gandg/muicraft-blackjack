@@ -15,10 +15,11 @@ const reasons: Record<RejectionReason, string> = {
   INVALID_WAGER: 'Wagers must be 10–500 chips in multiples of 10.',
   INSUFFICIENT_FUNDS: 'Not enough available chips for this wager.',
   WAGER_REQUIRED: 'Choose wager chips before dealing.',
-  NOT_IMPLEMENTED: 'This action is not available yet.',
+  PAIR_REQUIRED: 'Split requires two cards of the same rank.',
+  ALREADY_SPLIT: 'Only one split is allowed per round.',
   SHOE_EXHAUSTED: 'No cards remain in this shoe.',
   HAND_COMPLETE: 'This hand is already complete.',
-  TWO_CARDS_REQUIRED: 'Double requires the first two cards.',
+  TWO_CARDS_REQUIRED: 'This action requires the first two cards.',
   SPLIT_ACES: 'Split aces receive only one additional card.',
 };
 

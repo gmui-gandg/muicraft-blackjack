@@ -36,7 +36,7 @@ dealer, and payout rules from PRD section 3.
 `transition(state, event, nextUint32?)` returns `{ accepted: true, state }` or
 `{ accepted: false, state: originalState, reason }` with a typed rejection reason.
 `eligibility(state, event)` exposes the same
-phase, hand and funding rules for controls. Split returns `NOT_IMPLEMENTED`.
+phase, hand and funding rules for controls.
 The engine has no React, animation, clock, storage, or DOM dependency.
 
 Select a wager with `PLACE_BET` (10–500 in multiples of 10, capped by balance),
@@ -48,7 +48,7 @@ are replenished by the fixed threshold policy. Inject a `Uint32Source` into
 remaining sequence so transitions do not mutate the source shoe or input state.
 
 Opening naturals settle immediately, including required Ace/ten-value peeks.
-Otherwise `HIT`, `STAND` or `DOUBLE` drives `PLAYER_TURN`; 21 or bust completes
+Otherwise `HIT`, `STAND`, `DOUBLE` or `SPLIT` drives `PLAYER_TURN`; 21 or bust completes
 the active hand. Completion advances to the next unfinished hand, if any. If all
 hands bust, losses settle immediately without dealer draws. Otherwise, after all
 player hands complete, `DEALER_TURN` runs the dealer to S17 and enters
@@ -83,10 +83,30 @@ preserve the input state, cards, balance and history. Settlement and discards re
 all represented hands; two-hand rounds prevent natural payouts, and differing
 hand outcomes produce `mixed` with the total returned chips.
 
-Tests for either active non-ace split hand and split-ace rejection use unit
-hand-state fixtures only. The actual `SPLIT` operation, Split→Double journey, full
-split settlement integration, and player-facing Double/Split controls remain
-for later tickets. No Double control or persistence is added here.
+Double tests for either active non-ace split hand and split-ace rejection use
+constructed unit hand-state fixtures. Actual Split→Double and player-facing
+Double/Split integration remain for the later full-round integration ticket.
+
+## M3 Split engine
+
+`SPLIT` requires an unfinished opening two-card hand of identical rank, no previous
+split, and available funds for an equal additional stake. Thus Q+Q is eligible;
+10+J is not. It creates two independently staked hands, transferring one original
+card and one replacement card to each, and commits the additional wager once.
+For stake 10 from 1,000, two stakes of 10 leave 980 available. Both replacement
+cards must be available before any card or money moves. Resplits are refused.
+
+Split aces receive one card per hand and automatically finish. Any other split
+hand reaching 21 also finishes; play starts at the first unfinished hand and
+advances in order. Split 21 is ordinary 21, returning 20 on a winning stake of 10.
+One shared S17 dealer turn settles both hands independently, or all-bust settles
+without dealer draws. `NEXT_HAND` discards cards from both hands and the dealer.
+
+Deterministic tests exercise actual Split events, funding thresholds, immutable
+rejections, split aces/21, ordered play, the five two-hand payout combinations,
+shared dealer play and card ownership through discards. These are engine journeys;
+the UI still offers ordinary Deal/Hit/Stand/Next Hand only. Persistence and actual
+Split→Double/browser integration remain pending.
 
 ## M2 table presentation
 
@@ -211,7 +231,7 @@ The gameplay matrix uses desktop pointer clicks and real hasTouch-enabled taps a
 390 px, covering all seven deterministic outcome balances, Hit/Stand, concealment,
 repeated actions, Next Hand, reset, and a built-production-entry smoke. Five-width
 presentation/layout coverage remains separate; fixtures alone do not prove gameplay.
-Full MVP acceptance remains future work, including Double/Split UI and split integration, persistence,
+Full MVP acceptance remains future work, including Double/Split UI integration, persistence,
 help/keyboard/motion milestones and live deployment validation. Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
 
 ## Production packaging source (not executed at M0)
@@ -266,5 +286,6 @@ plus [issue #3 primitives](https://github.com/gmui-gandg/muicraft-blackjack/issu
 [issue #4 ordinary-round engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/4),
 [issue #5 table presentation](https://github.com/gmui-gandg/muicraft-blackjack/issues/5),
 [issue #6 playable rounds](https://github.com/gmui-gandg/muicraft-blackjack/issues/6),
-and [issue #7 Double engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/7).
+[issue #7 Double engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/7),
+and [issue #8 Split engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/8).
 No schedules, automatic merges, or deployments are enabled.
