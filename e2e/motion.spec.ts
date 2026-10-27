@@ -40,37 +40,20 @@ async function dimensions(page: Page) {
   return measurement;
 }
 
-// Observe every animation frame, including transitions that finish before an assertion polls.
-async function observe(page: Page) {
-  await page.evaluate(() => {
-    const frames: object[] = [];
-    Object.assign(window, { motionFrames: frames });
-    const end = performance.now() + 1500;
-    function frame() {
-      for (const animation of document.getAnimations()) {
-        const effect = animation.effect;
-        if (
-          !(effect instanceof KeyframeEffect) ||
-          !(effect.target instanceof Element)
-        )
-          continue;
-        frames.push({
-          name:
-            animation instanceof CSSAnimation
-              ? animation.animationName
-              : animation instanceof CSSTransition
-                ? animation.transitionProperty
-                : '',
-          target: effect.target.className,
-          timing: effect.getTiming(),
-          currentTime: animation.currentTime,
-          state: animation.playState,
-        });
-      }
-      if (performance.now() < end) requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
-  });
+async function activeEffects(page: Page) {
+  return page.evaluate(() =>
+    document.getAnimations().map((animation) => ({
+      name:
+        animation instanceof CSSAnimation
+          ? animation.animationName
+          : animation instanceof CSSTransition
+            ? animation.transitionProperty
+            : '',
+      timing: animation.effect?.getTiming(),
+      currentTime: animation.currentTime,
+      state: animation.playState,
+    })),
+  );
 }
 
 for (const mode of [
@@ -112,8 +95,8 @@ for (const mode of [
     };
     const before = await dimensions(page);
     expect(before.touch > 0).toBe(hasTouch === true);
-    await observe(page);
     await activate('Deal');
+    const dealEffects = await activeEffects(page);
     const dealt = await dimensions(page);
     if (process.env.M4_EVIDENCE_DIR && mode === 'normal') {
       await mkdir(process.env.M4_EVIDENCE_DIR, { recursive: true });
@@ -160,6 +143,7 @@ for (const mode of [
       .getByRole('img', { name: 'Concealed card' })
       .evaluate((card) => getComputedStyle(card.firstElementChild!).transform);
     await activate('Stand');
+    const settlementEffects = await activeEffects(page);
     await expect(page.getByRole('status').first()).toHaveText(
       'Win · Return: 20 · Net: 10',
     );
@@ -200,26 +184,20 @@ for (const mode of [
         mode === 'normal' || mode === 'full-override' ? 200 : 0,
       );
     if (mode === 'normal' || mode === 'full-override') {
-      await expect
-        .poll(() =>
-          page.evaluate(() =>
-            Reflect.get(window, 'motionFrames')
-              .map((frame: { name: string }) => frame.name)
-              .join(' '),
-          ),
-        )
-        .toMatch(/transform/);
-      const names: string[] = await page.evaluate(() =>
-        Reflect.get(window, 'motionFrames').map(
-          (frame: { name: string }) => frame.name,
+      expect(
+        dealEffects.some(
+          (effect) =>
+            effect.name.includes('deal') && effect.state === 'running',
         ),
-      );
-      for (const name of ['deal', 'outcome', 'settlement'])
-        expect(names.some((actual) => actual.includes(name))).toBe(true);
+      ).toBe(true);
+      for (const name of ['transform', 'outcome', 'settlement'])
+        expect(
+          settlementEffects.some(
+            (effect) =>
+              effect.name.includes(name) && effect.state === 'running',
+          ),
+        ).toBe(true);
     }
-    const frames: unknown = await page.evaluate(() =>
-      Reflect.get(window, 'motionFrames'),
-    );
     await activate('Next Hand');
     await expect(page.getByRole('img')).toHaveCount(0);
     const next = await dimensions(page);
@@ -235,7 +213,8 @@ for (const mode of [
       settled,
       result,
       next,
-      frames,
+      dealEffects,
+      settlementEffects,
     });
   });
 }
