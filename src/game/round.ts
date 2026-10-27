@@ -76,6 +76,11 @@ export type GameState = Common &
         activeHandIndex: null;
         outcome: Outcome | 'mixed';
         returned: number;
+        results: readonly Readonly<{
+          outcome: Outcome;
+          returned: number;
+          net: number;
+        }>[];
       }>
   );
 export function settledBankroll(
@@ -215,16 +220,20 @@ function settle(state: Common, round: Round): GameState {
   const outcomes = round.hands.map((hand) =>
     handOutcome(hand, round.dealer, round.hands.length === 2),
   );
-  const returned = round.hands.reduce(
-    (total, hand, index) =>
-      total +
+  const results = round.hands.map((hand, index) => {
+    const outcome = outcomes[index]!;
+    const returned =
       hand.stake *
-        (
-          { blackjack: 2.5, win: 2, push: 1, loss: 0 } satisfies Record<
-            Outcome,
-            number
-          >
-        )[outcomes[index]!],
+      (
+        { blackjack: 2.5, win: 2, push: 1, loss: 0 } satisfies Record<
+          Outcome,
+          number
+        >
+      )[outcome];
+    return { outcome, returned, net: returned - hand.stake };
+  });
+  const returned = results.reduce(
+    (total, result) => total + result.returned,
     0,
   );
   let hands = round.hands;
@@ -244,6 +253,7 @@ function settle(state: Common, round: Round): GameState {
     balance: state.balance + returned,
     outcome,
     returned,
+    results,
   };
   // Provenance must not change ordinary game snapshots or structured clones.
   Object.defineProperty(completed, completionProof, { enumerable: false });

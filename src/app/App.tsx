@@ -1,7 +1,8 @@
+import type { PlaySession } from './session';
 import { PlayableRound } from './PlayableRound';
 import styles from './App.module.css';
 
-export function App() {
+export function App({ session }: { session: PlaySession }) {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
@@ -24,10 +25,11 @@ export function App() {
       <section className={styles.preview} aria-labelledby="play-title">
         <h2 id="play-title">Take a seat</h2>
         <p>
-          Choose chips, then Deal. Reload persistence is pending M3: reloading
-          discards any unfinished hand and starts a new 1,000-chip session.
+          Choose a wager, then Deal. Reload restores settled chips and
+          preferences; unfinished hands are discarded. Use one active tab per
+          browser session.
         </p>
-        <PlayableRound />
+        <PlayableRound session={session} />
       </section>
       <p className={styles.notice}>
         For entertainment only — virtual chips, no cash value.

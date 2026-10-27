@@ -1,7 +1,8 @@
 # MuiCraft Blackjack
 
 A responsive single-player blackjack game with virtual wagering, Deal, Hit, Stand,
-settlement and explicit Next Hand, backed by the pure TypeScript engine. The
+Double, Split, settled-session recovery, settlement and explicit Next Hand, backed
+by the pure TypeScript engine. The
 original spade and CSS artwork use no external assets or fonts. For entertainment
 only — virtual chips, no cash value.
 
@@ -61,11 +62,12 @@ discards when the full shoe is replenished.
 State owns remaining cards, discards, dealer cards, one or two hands with stakes
 and a `splitAces` flag, active hand index, completion, balance,
 and accepted-event history. A completed
-round includes outcome and returned chips: natural 2.5× stake, win 2×, push 1×,
+round includes aggregate and per-hand outcome/returned/net results:
+natural 2.5× stake, win 2×, push 1×,
 loss 0×. Rejected events preserve state identity and history. History records
 accepted commands; automatic natural/bust settlement is part of that command.
 An exhausted injected mid-round shoe rejects the draw atomically, without
-reshuffling. The playable UI connects the ordinary-round engine events.
+reshuffling. The playable UI connects these engine events, including Double and Split.
 
 ## M3 Double engine
 
@@ -83,9 +85,8 @@ preserve the input state, cards, balance and history. Settlement and discards re
 all represented hands; two-hand rounds prevent natural payouts, and differing
 hand outcomes produce `mixed` with the total returned chips.
 
-Double tests for either active non-ace split hand and split-ace rejection use
-constructed unit hand-state fixtures. Actual Split→Double and player-facing
-Double/Split integration remain for the later full-round integration ticket.
+Double tests include constructed hand states and actual Split→Double journeys.
+The browser integration covers doubling both non-ace split hands and their ledger.
 
 ## M3 Split engine
 
@@ -104,9 +105,8 @@ without dealer draws. `NEXT_HAND` discards cards from both hands and the dealer.
 
 Deterministic tests exercise actual Split events, funding thresholds, immutable
 rejections, split aces/21, ordered play, the five two-hand payout combinations,
-shared dealer play and card ownership through discards. These are engine journeys;
-the UI still offers ordinary Deal/Hit/Stand/Next Hand only. Production persistence
-wiring and actual Split→Double/browser integration remain pending (issue #10).
+shared dealer play and card ownership through discards. The UI exposes eligible
+Double/Split actions, both visible hands, active progression and per-hand results.
 
 ## M2 table presentation
 
@@ -126,9 +126,29 @@ Action positions stay stable so rapid repeated clicks cannot turn Deal into Hit
 or Stand into Next Hand. Below 10 chips, Reset Virtual Bankroll uses the browser's
 accessible confirmation: cancel preserves chips, confirm starts at exactly 1,000.
 
-Production reload persistence is deferred to issue #10. Reloading the current app
-discards any unfinished hand and starts a fresh 1,000-chip session; gameplay does
-not call the storage adapter yet.
+The production entry constructs one `createPlaySession()` before React mounts.
+Recovery runs once outside render/effect replay. The controller marks an accepted
+Deal before dispatch, commits only an exact engine-issued whole-round completion,
+and ignores repeated settlement commands without another financial write.
+Preferences never commit an in-round balance. Reload restores settled chips and
+the selected wager (capped to affordable multiples of 10); unfinished ordinary or
+split rounds are discarded with an explanation. Next Hand remains explicit and
+clears the current wager; the saved selection survives reload.
+
+The Selected wager control permits lowering a wager as well as choosing legal
+amounts. Motion defaults to system reduced-motion preference, with reduced/full
+overrides. Audio remains muted; no sound playback is introduced. Depleted reset
+cancellation preserves storage; confirmation persists 1,000 and default preferences.
+Storage failures leave gameplay usable and display the adapter's explanation.
+
+`/e2e/fixtures/integration.html` mounts the same App, controller, dispatch boundary
+and storage adapter with only an injected deterministic shoe and test observers.
+It records actual localStorage bytes and engine transitions. Test-only simulated
+unloads stop dispatch after the pending marker or at dealer/settlement checkpoints,
+then browser navigation recreates the production session. DEALING is the pre-Deal
+checkpoint, not a separately rendered engine phase. These synchronous checkpoints
+are not claimed as browser-observed timing windows. Production has no delays or
+query-selectable fixture state; fixture code is excluded from the built entry.
 The development-only `/e2e/fixtures/round.html?scenario=win` entry mounts the same
 playable component with deterministic injected state. Other scenarios are `loss`,
 `push`, `dealer-bust`, `player-natural`, `both-natural`, `dealer-natural`, `low`, and
@@ -190,16 +210,15 @@ the caller owns cleanup after exit. Forced termination can leave temporary files
 The CommonJS Vite config avoids the bundled ESM config loader's temporary writes
 in source/dependencies. Builds intentionally generate `dist/`.
 
-Production gameplay does not yet use localStorage; there are no cookies, service
-worker, or database. The standalone adapter below is tested with synthetic
-lifecycle inputs. Runtime data/cache belongs under `FACTORY_RUNTIME_STATE`. Tests
+Production gameplay uses localStorage only through the adapter below; there are
+no cookies, service worker, or database. Runtime data/cache belongs under
+`FACTORY_RUNTIME_STATE`. Tests
 use fresh owned state/processes and fresh browser contexts for each attempt.
 
 ## M3 settled-storage boundary (issue #9)
 
 `createSessionStorage()` in `src/storage/session.ts` is a standalone localStorage
-adapter. It has no production caller yet; actual app refresh persistence, settings
-controls and lifecycle wiring belong to issue #10. No sound playback is introduced.
+adapter used by the production session controller. No sound playback is introduced.
 
 One key, `muicraft-blackjack.session`, contains this exact v1 JSON shape:
 
@@ -230,8 +249,9 @@ The public operations are:
   settled bankroll, copied preferences, notices and `available`/`memory`
   persistence status. It does not represent live gameplay phase. `dealWager` caps
   selection to affordable multiples of 10, returning `null` below 10 chips; the
-  selected preference remains intact. The future caller supplies the current
-  system reduced-motion preference; `system` follows it, explicit overrides win.
+  selected preference remains intact. The snapshot can resolve a supplied system
+  preference; the UI uses the live CSS
+  media query for `system`, with explicit overrides taking precedence.
 - `beginRound()` writes only `roundPending: true` against the last settled funds.
   It accepts no balance. Call it before beginning an unfinished hand.
 - `commitSettled(completedState)` requires the exact engine-issued `ROUND_COMPLETE`
@@ -249,8 +269,10 @@ The public operations are:
   return false without mutation.
 - `reset({ confirmed: true })` explicitly resets funds to 1,000, preferences to
   defaults and the marker to false. Missing/false confirmation returns false
-  without touching memory or storage. The future UI owns obtaining real user
-  confirmation; these tests exercise intent only. Confirmed reset retries storage
+  without touching memory or storage. The UI obtains native browser confirmation;
+  adapter tests exercise intent, and
+  browser tests exercise canceled and confirmed dialogs with actual persisted bytes.
+  Confirmed reset retries storage
   access and may replace this adapter's invalid/unknown record.
 
 On recreation, a true marker produces “Unfinished hand discarded. Restored the
@@ -282,8 +304,9 @@ Only this adapter's key is written; unrelated keys are untouched.
 
 `tests/storage.test.ts` exercises synthetic recreation, interruption and settlement,
 serialized allowlists, invalid data, storage failures, wager recovery, motion/audio
-and reset intent. Existing browser regression checks ordinary gameplay only;
-these tests do not claim production refresh persistence or full-MVP acceptance.
+and reset intent. `src/app/session.test.tsx` checks controller/React replay safety;
+`e2e/integration.spec.ts` covers deterministic desktop pointer and touch journeys,
+settled reloads, interrupted ordinary/split recovery, storage denial and reset.
 
 ## Checks
 
@@ -321,11 +344,12 @@ check names are configured.** Record local results rather than claiming remote C
 
 These checks cover the scaffold, engine, presentation and issue #6 playable rounds.
 The gameplay matrix uses desktop pointer clicks and real hasTouch-enabled taps at
-390 px, covering all seven deterministic outcome balances, Hit/Stand, concealment,
+390 px, covering all seven ordinary outcome balances, Hit/Stand, concealment,
 repeated actions, Next Hand, reset, and a built-production-entry smoke. Five-width
 presentation/layout coverage remains separate; fixtures alone do not prove gameplay.
-Full MVP acceptance remains future work, including Double/Split UI integration, persistence,
-help/keyboard/motion milestones and live deployment validation. Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
+Issue #10 adds Double/Split integration and settled persistence coverage. Full MVP
+acceptance remains future work: help/shortcuts, production UX/motion polish and
+live deployment validation remain separate (AC-08/09 and AC-11/12). Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
 
 ## Production packaging source (not executed at M0)
 
@@ -381,5 +405,6 @@ plus [issue #3 primitives](https://github.com/gmui-gandg/muicraft-blackjack/issu
 [issue #6 playable rounds](https://github.com/gmui-gandg/muicraft-blackjack/issues/6),
 [issue #7 Double engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/7),
 [issue #8 Split engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/8),
-and [issue #9 storage boundary](https://github.com/gmui-gandg/muicraft-blackjack/issues/9).
+[issue #9 storage boundary](https://github.com/gmui-gandg/muicraft-blackjack/issues/9),
+and [issue #10 gameplay/storage integration](https://github.com/gmui-gandg/muicraft-blackjack/issues/10).
 No schedules, automatic merges, or deployments are enabled.
