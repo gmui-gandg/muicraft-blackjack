@@ -5,7 +5,12 @@ import { expect, test, vi } from 'vitest';
 import { App } from './App';
 import { PlayableRound } from './PlayableRound';
 import { dispatchRound } from './dispatch';
-import { eligibility, transition, type GameEvent } from '../game/round';
+import {
+  eligibility,
+  transition,
+  type GameEvent,
+  type GameState,
+} from '../game/round';
 import { roundCases, roundState } from '../test/round-fixtures';
 
 const click = (name: string) =>
@@ -210,7 +215,7 @@ test.each([0, 1])(
     ]);
     expect(result.state.round?.dealer).toBe(player.round?.dealer);
     expect(result.state.discards).toBe(player.discards);
-    const owned = (state: typeof player) => [
+    const owned = (state: GameState) => [
       ...state.shoe,
       ...state.discards,
       ...(state.round?.hands.flatMap((hand) => hand.cards) ?? []),
