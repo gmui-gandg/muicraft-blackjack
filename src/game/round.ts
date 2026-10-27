@@ -52,6 +52,9 @@ type Common = Readonly<{
   discards: readonly Card[];
   history: readonly GameEvent[];
 }>;
+const completionProof = Symbol('engine completion');
+const settledBalances = new WeakMap<object, number>();
+
 export type GameState = Common &
   (
     | Readonly<{ phase: 'BETTING'; round: null; activeHandIndex: null }>
@@ -68,12 +71,23 @@ export type GameState = Common &
       }>
     | Readonly<{
         phase: 'ROUND_COMPLETE';
+        [completionProof]: true;
         round: Round;
         activeHandIndex: null;
         outcome: Outcome | 'mixed';
         returned: number;
       }>
   );
+export function settledBankroll(
+  state: Extract<GameState, { phase: 'ROUND_COMPLETE' }>,
+): number | undefined {
+  const issued = settledBalances.get(state);
+  if (issued === undefined) return undefined;
+  return state.phase === 'ROUND_COMPLETE' && issued === state.balance
+    ? issued
+    : undefined;
+}
+
 export type Transition =
   | Readonly<{ accepted: true; state: GameState }>
   | Readonly<{
@@ -82,10 +96,23 @@ export type Transition =
       reason: RejectionReason;
     }>;
 
+export const STARTING_BANKROLL = 1000;
+export const WAGER_LIMITS = { min: 10, max: 500, step: 10 } as const;
+
+export function isValidWager(amount: unknown): amount is number {
+  return (
+    typeof amount === 'number' &&
+    Number.isInteger(amount) &&
+    amount >= WAGER_LIMITS.min &&
+    amount <= WAGER_LIMITS.max &&
+    amount % WAGER_LIMITS.step === 0
+  );
+}
+
 export function createGame(shoe: Shoe = new Shoe()): GameState {
   return {
     phase: 'BETTING',
-    balance: 1000,
+    balance: STARTING_BANKROLL,
     wager: 0,
     shoe: shoe.snapshot(),
     discards: [],
@@ -96,8 +123,7 @@ export function createGame(shoe: Shoe = new Shoe()): GameState {
 }
 
 function wagerEligibility(balance: number, amount: number): Eligibility {
-  if (!Number.isInteger(amount) || amount < 10 || amount > 500 || amount % 10)
-    return { allowed: false, reason: 'INVALID_WAGER' };
+  if (!isValidWager(amount)) return { allowed: false, reason: 'INVALID_WAGER' };
   if (amount > balance) return { allowed: false, reason: 'INSUFFICIENT_FUNDS' };
   return { allowed: true };
 }
@@ -209,15 +235,20 @@ function settle(state: Common, round: Round): GameState {
   const outcome = outcomes.every((value) => value === outcomes[0])
     ? outcomes[0]!
     : 'mixed';
-  return {
+  const completed: Extract<GameState, { phase: 'ROUND_COMPLETE' }> = {
     ...state,
     phase: 'ROUND_COMPLETE',
+    [completionProof]: true,
     round: { ...round, hands },
     activeHandIndex: null,
     balance: state.balance + returned,
     outcome,
     returned,
   };
+  // Provenance must not change ordinary game snapshots or structured clones.
+  Object.defineProperty(completed, completionProof, { enumerable: false });
+  settledBalances.set(completed, completed.balance);
+  return completed;
 }
 
 function advancePlayer(state: Common, round: Round): GameState {
