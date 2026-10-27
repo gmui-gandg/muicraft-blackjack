@@ -2,6 +2,7 @@ import { expect, type Page, type TestInfo } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from './app-test.js';
+import { stressFixtures } from '../src/test/table-fixtures.js';
 
 async function save(info: TestInfo, name: string, value: unknown) {
   const body = JSON.stringify(value, null, 2);
@@ -239,14 +240,12 @@ for (const mode of [
   });
 }
 
-for (const outcome of ['Win', 'Loss', 'Push']) {
+for (const { scenario, outcome } of stressFixtures) {
   test(`separate stress component fixture: ${outcome}`, async ({
     page,
     appURL,
   }, info) => {
-    await page.goto(
-      `${appURL}/e2e/fixtures/table.html?scenario=stress-${outcome}`,
-    );
+    await page.goto(`${appURL}/e2e/fixtures/table.html?scenario=${scenario}`);
     await expect(page.getByRole('alert')).toBeVisible();
     const boxes = [];
     for (const name of ['Hand 1', 'Hand 2 Active hand']) {
