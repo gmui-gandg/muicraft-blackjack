@@ -106,3 +106,29 @@ export const presentationFixtures = [
     fixture: outcomeFixture(label),
   })),
 ];
+
+export const stressFixtures = ['Win', 'Loss', 'Push']
+  .filter(isOutcomeLabel)
+  .map((label) => ({
+    scenario: `stress-${label}`,
+    fixture: {
+      ...splitFixture,
+      players: [
+        {
+          ...first,
+          cards: Array.from(
+            { length: 12 },
+            (_, index) => first.cards[index % 2]!,
+          ),
+          outcome: { label, ...outcomeValues[label] },
+        },
+        {
+          ...second,
+          cards: Array.from(
+            { length: 10 },
+            (_, index) => second.cards[index % 2]!,
+          ),
+        },
+      ],
+    } satisfies TableProps,
+  }));

@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type CSSProperties } from 'react';
 import type { Suit } from '../game/cards';
 import {
   chipDenominations,
@@ -27,29 +27,28 @@ const suitPaths: Record<Suit, string> = {
 };
 
 export function PlayingCard({ card }: { card: CardView }) {
-  if (card.concealed) {
-    return (
-      <div
-        className={`${styles.card} ${styles.back}`}
-        role="img"
-        aria-label="Concealed card"
-      >
-        <span aria-hidden="true">◇</span>
-      </div>
-    );
-  }
   return (
     <div
-      className={`${styles.card} ${card.suit === 'hearts' || card.suit === 'diamonds' ? styles.red : ''}`}
+      className={`${styles.card} ${card.concealed ? styles.back : card.suit === 'hearts' || card.suit === 'diamonds' ? styles.red : ''}`}
       role="img"
-      aria-label={`${card.rank} of ${card.suit}`}
+      aria-label={
+        card.concealed ? 'Concealed card' : `${card.rank} of ${card.suit}`
+      }
     >
-      <span aria-hidden="true" className={styles.rank}>
-        {card.rank}
-      </span>
-      <svg viewBox="0 0 80 96" aria-hidden="true" focusable="false">
-        <path d={suitPaths[card.suit]} fill="currentColor" />
-      </svg>
+      <div className={`${styles.face} ${card.concealed ? styles.turned : ''}`}>
+        {card.concealed ? (
+          <span aria-hidden="true">◇</span>
+        ) : (
+          <>
+            <span aria-hidden="true" className={styles.rank}>
+              {card.rank}
+            </span>
+            <svg viewBox="0 0 80 96" aria-hidden="true" focusable="false">
+              <path d={suitPaths[card.suit]} fill="currentColor" />
+            </svg>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -82,7 +81,18 @@ function Hand({
           <p className={styles.total}>{hand.total}</p>
           <div className={styles.cards}>
             {hand.cards.map((card, index) => (
-              <PlayingCard key={index} card={card} />
+              <div
+                key={index}
+                className={styles.deal}
+                style={
+                  {
+                    '--deal-order':
+                      index < 2 ? index * 2 + (player ? 0 : 1) : 0,
+                  } as CSSProperties
+                }
+              >
+                <PlayingCard card={card} />
+              </div>
             ))}
           </div>
           {hand.stake !== undefined && <p>Stake: {hand.stake}</p>}
@@ -95,10 +105,10 @@ function Hand({
           aria-label={`${hand?.label ?? 'Your hand 2'} result`}
         >
           {hand?.outcome && (
-            <>
+            <span className={styles.outcome}>
               <strong>{hand.outcome.label}</strong> · Return:{' '}
               {hand.outcome.returned} · Net: {hand.outcome.net}
-            </>
+            </span>
           )}
         </p>
       )}
@@ -126,7 +136,9 @@ export function ActionButton({
         aria-describedby={
           !control.enabled ? (descriptionId ?? reasonId) : undefined
         }
-        onClick={() => control.onActivate()}
+        onClick={(event) => {
+          if (event.detail <= 1) control.onActivate();
+        }}
       >
         {chip ? <span>{chip}</span> : control.label}
       </button>
@@ -191,7 +203,12 @@ export function Table({
         <dl>
           <div>
             <dt>Balance</dt>
-            <dd>{balance}</dd>
+            <dd>
+              {balance}
+              {players.some((hand) => hand.outcome) && (
+                <span className={styles.settlement} aria-hidden="true" />
+              )}
+            </dd>
           </div>
           <div>
             <dt>Wager</dt>

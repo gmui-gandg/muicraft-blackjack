@@ -159,3 +159,29 @@ test('groups shared reasons while preserving distinct disabled explanations', ()
   fireEvent.click(next);
   expect(onActivate).toHaveBeenCalledExactlyOnceWith();
 });
+
+for (const label of [
+  'Deal',
+  'Hit',
+  'Stand',
+  'Double',
+  'Split',
+  'Next Hand',
+  'Reset Virtual Bankroll',
+  'Add 10 chips',
+  'Add 50 chips',
+  'Add 100 chips',
+]) {
+  test(`${label} ignores native multi-click duplicates but retains separate activations`, () => {
+    const onActivate = vi.fn();
+    render(<ActionButton control={{ label, enabled: true, onActivate }} />);
+    const button = screen.getByRole('button', { name: label });
+    fireEvent.click(button, { detail: 1 });
+    fireEvent.click(button, { detail: 2 });
+    fireEvent.click(button, { detail: 3 });
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    fireEvent.click(button, { detail: 1 });
+    fireEvent.click(button, { detail: 0 });
+    expect(onActivate).toHaveBeenCalledTimes(3);
+  });
+}

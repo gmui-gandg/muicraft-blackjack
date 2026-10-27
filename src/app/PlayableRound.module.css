@@ -11,10 +11,12 @@
   margin-left: 0.5rem;
 }
 .game[data-motion='reduced'] {
-  --control-motion-duration: 0ms;
+  --motion-duration: 0ms;
+  --motion-step: 0ms;
 }
 .game[data-motion='full'] {
-  --control-motion-duration: 150ms;
+  --motion-duration: 200ms;
+  --motion-step: 60ms;
 }
 
 .preferences select:focus-visible {
