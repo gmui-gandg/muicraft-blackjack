@@ -159,3 +159,57 @@ test('groups shared reasons while preserving distinct disabled explanations', ()
   fireEvent.click(next);
   expect(onActivate).toHaveBeenCalledExactlyOnceWith();
 });
+
+for (const label of ['Hit', 'Stand', 'Double', 'Split']) {
+  test(`${label} ignores same-hand multi-click duplicates but retains fresh activations`, () => {
+    const onActivate = vi.fn();
+    render(
+      <ActionButton
+        activeHand={0}
+        control={{ label, enabled: true, onActivate }}
+      />,
+    );
+    const button = screen.getByRole('button', { name: label });
+    fireEvent.click(button, { detail: 1 });
+    fireEvent.click(button, { detail: 2 });
+    fireEvent.click(button, { detail: 3 });
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    fireEvent.click(button, { detail: 1 });
+    fireEvent.click(button, { detail: 0 });
+    expect(onActivate).toHaveBeenCalledTimes(3);
+  });
+}
+
+for (const label of ['Hit', 'Stand', 'Double']) {
+  test(`${label} permits the next split hand even within a native multi-click`, () => {
+    const onActivate = vi.fn();
+    const control = { label, enabled: true, onActivate } as const;
+    const { rerender } = render(
+      <ActionButton activeHand={0} control={control} />,
+    );
+    const button = screen.getByRole('button', { name: label });
+    fireEvent.click(button, { detail: 1 });
+    rerender(<ActionButton activeHand={1} control={control} />);
+    expect(screen.getByRole('button', { name: label })).toBe(button);
+    fireEvent.click(button, { detail: 2 });
+    expect(onActivate).toHaveBeenCalledTimes(2);
+    fireEvent.click(button, { detail: 3 });
+    expect(onActivate).toHaveBeenCalledTimes(2);
+  });
+}
+
+for (const label of [
+  'Add 10 chips',
+  'Add 50 chips',
+  'Add 100 chips',
+  'Reset Virtual Bankroll',
+]) {
+  test(`${label} retains repeated betting and confirmation activations`, () => {
+    const onActivate = vi.fn();
+    render(<ActionButton control={{ label, enabled: true, onActivate }} />);
+    const button = screen.getByRole('button', { name: label });
+    fireEvent.click(button, { detail: 1 });
+    fireEvent.click(button, { detail: 2 });
+    expect(onActivate).toHaveBeenCalledTimes(2);
+  });
+}

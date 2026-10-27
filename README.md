@@ -349,8 +349,8 @@ The gameplay matrix uses desktop pointer clicks and real hasTouch-enabled taps a
 repeated actions, Next Hand, reset, and a built-production-entry smoke. Five-width
 presentation/layout coverage remains separate; fixtures alone do not prove gameplay.
 Issue #10 adds Double/Split integration and settled persistence coverage. Full MVP
-acceptance remains future work: production UX/motion polish and
-live deployment validation remain separate (AC-08/09 and AC-11/12). Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
+acceptance remains future work; container and live deployment validation remain
+separate (AC-11/12). Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
 
 ## Production packaging source (not executed at M0)
 
@@ -427,4 +427,37 @@ recovery/storage notices are readable without hover. Motion selection remains
 keyboard-operable and persisted; audio stays muted. See [rules](docs/RULES.md).
 Component dispatch assertions and Chromium keyboard journeys cover this scope;
 they do not establish every screen reader's spoken behavior, full MVP acceptance
-or deployment acceptance. Issues #12 and #13 remain separate.
+or deployment acceptance. Issue #13 packaging handoff remains separate.
+
+## Motion and mobile play (issue #12)
+
+Cards arrive over 200 ms, with the opening player/dealer sequence staggered by
+60 ms per card. Subsequent draws arrive without an added sequence delay. The
+concealed face flips at reveal; a decorative chip beside the settled balance and
+each hand's result move over 200 ms. Cards, totals, controls and payouts update
+immediately through the existing engine/session boundary. CSS completion events
+and timers never decide outcomes. Motion does not lock legal actions. Native
+multi-click repetitions on the same active hand are ignored; actions on the next
+split hand, wager chips, reset confirmation, separate clicks and fresh keyboard
+activations remain available. Held-key suppression and Help's
+focus lifecycle remain unchanged.
+
+System mode follows the live OS reduced-motion query, with all these durations
+and sequence delays set to zero under reduce. Explicit reduced also uses zero,
+including after preference reload. The existing explicit full override takes
+precedence over an OS reduce request and uses 200 ms/60 ms; full is not claimed to
+follow system reduction. Preferences use the existing versioned adapter.
+
+The motion browser matrix plays deterministic ordinary rounds at 320, 375, 390,
+768 and 1440 CSS-pixel widths: exact 10-chip wager, Deal, Stand, settled result and
+explicit Next Hand. Mobile projects use hasTouch and actual taps. It measures
+horizontal bounds and visible button/select targets (at least 44 × 44), and records
+computed durations plus active CSS animations/transitions. Normal, system-reduced,
+explicit-reduced and full-override runs assert identical cards, result and balance.
+Separate supplied component fixtures stress both split hands with 12/10 cards,
+Win/Loss/Push text and a storage-error notice. Those fixtures are layout evidence,
+not engine gameplay or actual storage-failure journeys; the existing integration
+suite covers actual failures. Set `M4_EVIDENCE_DIR` to an external directory to save
+JSON frame observations and screenshots. Fixtures are excluded from the production
+entry and have no product query selector. These Chromium checks do not establish
+screen-reader speech, every device, full MVP or deployment acceptance.

@@ -1,4 +1,6 @@
 .table {
+  --effect-duration: var(--motion-duration, 200ms);
+  --sequence-step: var(--motion-step, 60ms);
   --felt: #0c5a43;
   --gold: #d9be7a;
   --ivory: #faf9f5;
@@ -246,6 +248,10 @@
   .chip {
     transition-duration: var(--control-motion-duration, 0ms);
   }
+  .table {
+    --effect-duration: var(--motion-duration, 0ms);
+    --sequence-step: var(--motion-step, 0ms);
+  }
 }
 
 .pendingHand {
@@ -254,4 +260,59 @@
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
+}
+
+.deal {
+  animation: deal var(--effect-duration) ease-out backwards;
+  animation-delay: calc(var(--deal-order) * var(--sequence-step));
+}
+.face {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  background: inherit;
+  transition: transform var(--effect-duration) ease-out;
+}
+.turned {
+  transform: perspective(500px) rotateY(180deg);
+}
+.outcome {
+  display: inline-block;
+  animation: outcome var(--effect-duration) ease-out;
+}
+.settlement {
+  display: inline-block;
+  margin-left: 0.4rem;
+  color: var(--gold);
+  animation: settlement var(--effect-duration) ease-out;
+}
+@keyframes deal {
+  from {
+    transform: translateY(-12px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes outcome {
+  from {
+    transform: translateY(6px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes settlement {
+  from {
+    transform: translateY(16px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.settlement::before {
+  content: '◉';
 }
