@@ -22,7 +22,8 @@ export type RejectionReason =
   | 'INVALID_WAGER'
   | 'INSUFFICIENT_FUNDS'
   | 'WAGER_REQUIRED'
-  | 'NOT_IMPLEMENTED'
+  | 'PAIR_REQUIRED'
+  | 'ALREADY_SPLIT'
   | 'SHOE_EXHAUSTED'
   | 'HAND_COMPLETE'
   | 'TWO_CARDS_REQUIRED'
@@ -102,8 +103,6 @@ function wagerEligibility(balance: number, amount: number): Eligibility {
 }
 
 export function eligibility(state: GameState, event: GameEvent): Eligibility {
-  if (event.type === 'SPLIT')
-    return { allowed: false, reason: 'NOT_IMPLEMENTED' };
   switch (event.type) {
     case 'PLACE_BET':
       if (state.phase === 'BETTING')
@@ -119,6 +118,7 @@ export function eligibility(state: GameState, event: GameEvent): Eligibility {
     case 'HIT':
     case 'STAND':
     case 'DOUBLE':
+    case 'SPLIT':
       if (state.phase === 'PLAYER_TURN') {
         const hand =
           state.activeHandIndex === 0
@@ -126,13 +126,21 @@ export function eligibility(state: GameState, event: GameEvent): Eligibility {
             : state.round.hands[1];
         if (hand.complete) return { allowed: false, reason: 'HAND_COMPLETE' };
         if (hand.splitAces) return { allowed: false, reason: 'SPLIT_ACES' };
-        if (event.type === 'DOUBLE') {
+        if (event.type === 'SPLIT' && state.round.hands.length === 2)
+          return { allowed: false, reason: 'ALREADY_SPLIT' };
+        if (event.type === 'DOUBLE' || event.type === 'SPLIT') {
           if (hand.cards.length !== 2)
             return { allowed: false, reason: 'TWO_CARDS_REQUIRED' };
+          if (
+            event.type === 'SPLIT' &&
+            hand.cards[0]!.rank !== hand.cards[1]!.rank
+          )
+            return { allowed: false, reason: 'PAIR_REQUIRED' };
           if (state.balance < hand.stake)
             return { allowed: false, reason: 'INSUFFICIENT_FUNDS' };
         }
-        return event.type === 'STAND' || state.shoe.length > 0
+        return event.type === 'STAND' ||
+          state.shoe.length >= (event.type === 'SPLIT' ? 2 : 1)
           ? { allowed: true }
           : { allowed: false, reason: 'SHOE_EXHAUSTED' };
       }
@@ -272,6 +280,26 @@ export function transition(
       isNatural(round.dealer, 'original')
         ? settle(committed, round)
         : { ...committed, phase: 'PLAYER_TURN', round, activeHandIndex: 0 };
+  } else if (event.type === 'SPLIT' && state.phase === 'PLAYER_TURN') {
+    const hand = state.round.hands[0];
+    const splitAces = hand.cards[0]!.rank === 'A';
+    const splitHand = (index: 0 | 1): PlayerHand => {
+      const cards = [hand.cards[index]!, state.shoe[index]!];
+      return {
+        cards,
+        stake: hand.stake,
+        splitAces,
+        complete: splitAces || scoreHand(cards).total === 21,
+      };
+    };
+    next = advancePlayer(
+      {
+        ...common,
+        balance: state.balance - hand.stake,
+        shoe: state.shoe.slice(2),
+      },
+      { ...state.round, hands: [splitHand(0), splitHand(1)] },
+    );
   } else if (
     (event.type === 'HIT' ||
       event.type === 'STAND' ||
