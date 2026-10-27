@@ -98,7 +98,6 @@ Verify the host's Docker version and loopback isolation before relying on it.
 probe_port=18080
 container_id=$(docker run --detach --pull=never \
   --publish "127.0.0.1:$probe_port:80" "$image_id")
-printf '%s\n' "$container_id" > "$attempt/container-id"
 finish_probe() {
   local probe_exit=$?
   docker logs "$container_id" > "$attempt/container.log" 2>&1 || probe_exit=1
@@ -109,6 +108,7 @@ finish_probe() {
   exit "$probe_exit"
 }
 trap finish_probe EXIT
+printf '%s\n' "$container_id" > "$attempt/container-id"
 base_url="http://127.0.0.1:$probe_port"
 ready=false
 for n in {1..30}; do

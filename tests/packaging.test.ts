@@ -1,6 +1,7 @@
 import { execFile, execFileSync } from 'node:child_process';
 import {
   cp,
+  mkdir,
   mkdtemp,
   readFile,
   readdir,
@@ -72,6 +73,77 @@ test('build emits current Git identity and executable assets', async () => {
     await rm(state, { recursive: true, force: true });
   }
 });
+
+test.each([false, true])(
+  'documented probe binds loopback and cleans up when CID recording fails=%s',
+  async (failRecording) => {
+    const guide = await readFile(
+      join(projectRoot, 'docs/DEPLOYMENT.md'),
+      'utf8',
+    );
+    const start = guide.match(
+      /```bash\n(probe_port=18080\n[\s\S]*?)base_url=/,
+    )?.[1];
+    if (!start) throw new Error('Missing documented container startup');
+    const attempt = await mkdtemp(join(tmpdir(), 'muicraft-probe-'));
+    try {
+      if (failRecording) await mkdir(join(attempt, 'container-id'));
+      const result = execute(
+        'bash',
+        [
+          '-c',
+          `set -euo pipefail
+docker() {
+  printf '%s\\n' "$@" >> "$attempt/calls"
+  case "$1" in
+    run) printf 'owned-cid\\n' ;;
+    inspect) printf 'false\\n' ;;
+  esac
+}
+${start}
+exit 0`,
+        ],
+        {
+          env: { ...process.env, attempt, image_id: 'sha256:probe-image' },
+          timeout: 5_000,
+        },
+      );
+      if (failRecording)
+        await expect(result).rejects.toMatchObject({ code: 1 });
+      else await result;
+      expect(await readFile(join(attempt, 'calls'), 'utf8')).toBe(
+        [
+          'run',
+          '--detach',
+          '--pull=never',
+          '--publish',
+          '127.0.0.1:18080:80',
+          'sha256:probe-image',
+          'logs',
+          'owned-cid',
+          'stop',
+          '--time',
+          '10',
+          'owned-cid',
+          'inspect',
+          '--format',
+          '{{.State.Running}}',
+          'owned-cid',
+          '',
+        ].join('\n'),
+      );
+      expect(
+        await readFile(join(attempt, 'container-running.txt'), 'utf8'),
+      ).toBe('false\n');
+      if (!failRecording)
+        expect(await readFile(join(attempt, 'container-id'), 'utf8')).toBe(
+          'owned-cid\n',
+        );
+    } finally {
+      await rm(attempt, { recursive: true, force: true });
+    }
+  },
+);
 
 test('Git-free builds use exact injected identity without stale output and fail without identity', async () => {
   const root = await mkdtemp(join(tmpdir(), 'muicraft-git-free-'));
