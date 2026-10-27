@@ -1,0 +1,28 @@
+.dialog {
+  color: #faf9f5;
+  background: #0b1f1c;
+  border: 2px solid #d9be7a;
+  border-radius: 1rem;
+  max-width: min(42rem, calc(100vw - 3rem));
+  max-height: calc(100dvh - 3rem);
+  overflow-y: auto;
+  padding: 1rem;
+  line-height: 1.6;
+}
+.dialog::backdrop {
+  background: rgb(0 0 0 / 70%);
+}
+.button {
+  min-width: 44px;
+  min-height: 44px;
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  background: #d9be7a;
+  color: #182323;
+  border: 2px solid transparent;
+}
+.button:focus-visible {
+  outline: 3px solid #faf9f5;
+  outline-offset: 3px;
+}

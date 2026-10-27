@@ -12,6 +12,7 @@ import '../styles/global.css';
 
 const cases: Record<string, readonly Rank[]> = {
   ordinary: ['10', '10', '8', '7'],
+  keyboard: ['2', '10', '3', '7', '2', '2', '2'],
   split: ['Q', 'A', 'Q', '6', '2', '3', '8', '7'],
   aces: ['A', '10', 'A', '7', 'K', '9'],
   'split-21': ['Q', '10', 'Q', '7', 'A', 'A'],
@@ -23,6 +24,7 @@ const params = new URLSearchParams(location.search);
 const ranks = cases[params.get('scenario') ?? 'ordinary'] ?? cases.ordinary!;
 const evidence: IntegrationEvidence = {
   writes: [],
+  attempts: [],
   transitions: [],
   controls: [],
 };
@@ -45,6 +47,7 @@ const session = createPlaySession(
     wager: saved.dealWager ?? 0,
   }),
   (state, event) => {
+    evidence.attempts.push(event.type);
     if (event.type === 'DEAL' && params.get('interrupt') === 'DEALING')
       throw new Error('Test-only simulated unload: DEALING');
     return dispatchRound(state, event, (next) => {

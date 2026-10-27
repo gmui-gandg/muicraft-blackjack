@@ -33,9 +33,11 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       page.getByText(/Reload restores settled chips and preferences/),
     ).toBeVisible();
     await expect(
-      page.getByText(/For entertainment only — virtual chips, no cash value/),
+      page.getByText('For entertainment only — virtual chips, no cash value.', {
+        exact: true,
+      }),
     ).toBeVisible();
-    await expect(page.getByRole('button')).toHaveCount(9);
+    await expect(page.getByRole('button')).toHaveCount(10);
     const previewTargets = [];
     for (const button of await page.getByRole('button').all()) {
       const box = await button.boundingBox();
@@ -223,7 +225,11 @@ for (const { scenario } of presentationFixtures) {
         Loss: 'Loss · Return: 0 · Net: -50',
         Push: 'Push · Return: 50 · Net: 0',
       };
-      await expect(page.getByRole('status')).toHaveText(expected[scenario]);
+      await expect(page.getByRole('status')).toHaveCount(2);
+      await expect(page.getByRole('status').nth(1)).toBeEmpty();
+      await expect(page.getByRole('status').first()).toHaveText(
+        expected[scenario],
+      );
       await expect(page.getByText('Stake: 50')).toBeVisible();
     }
     await page.keyboard.press('Tab');

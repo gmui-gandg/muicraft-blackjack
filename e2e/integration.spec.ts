@@ -77,7 +77,8 @@ test('Q+Q split double both hands commits 40 once, shared S17, settled reload', 
       .getByRole('region', { name: 'Your hand 1', exact: true })
       .getByRole('img'),
   ).toHaveCount(3);
-  await expect(page.getByRole('status')).toHaveCount(0);
+  for (const result of await page.getByRole('status').all())
+    await expect(result).toBeEmpty();
   expect(await saved(page)).toEqual({
     version: 1,
     settledBankroll: 1000,
@@ -370,7 +371,8 @@ test('mixed split outcomes display each hand return without aggregate duplicatio
   await activate(page, 'Deal', hasTouch);
   await activate(page, 'Split', hasTouch);
   await activate(page, 'Stand', hasTouch);
-  await expect(page.getByRole('status')).toHaveCount(0);
+  for (const result of await page.getByRole('status').all())
+    await expect(result).toBeEmpty();
   await activate(page, 'Stand', hasTouch);
   await expect(balance(page)).toHaveText('990');
   await expect(

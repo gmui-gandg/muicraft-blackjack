@@ -2,7 +2,8 @@
 
 A responsive single-player blackjack game with virtual wagering, Deal, Hit, Stand,
 Double, Split, settled-session recovery, settlement and explicit Next Hand, backed
-by the pure TypeScript engine. The
+by the pure TypeScript engine. Help explains the [fixed rules](docs/RULES.md),
+and gameplay supports keyboard shortcuts and accessible outcome feedback. The
 original spade and CSS artwork use no external assets or fonts. For entertainment
 only — virtual chips, no cash value.
 
@@ -348,7 +349,7 @@ The gameplay matrix uses desktop pointer clicks and real hasTouch-enabled taps a
 repeated actions, Next Hand, reset, and a built-production-entry smoke. Five-width
 presentation/layout coverage remains separate; fixtures alone do not prove gameplay.
 Issue #10 adds Double/Split integration and settled persistence coverage. Full MVP
-acceptance remains future work: help/shortcuts, production UX/motion polish and
+acceptance remains future work: production UX/motion polish and
 live deployment validation remain separate (AC-08/09 and AC-11/12). Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
 
 ## Production packaging source (not executed at M0)
@@ -406,5 +407,24 @@ plus [issue #3 primitives](https://github.com/gmui-gandg/muicraft-blackjack/issu
 [issue #7 Double engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/7),
 [issue #8 Split engine](https://github.com/gmui-gandg/muicraft-blackjack/issues/8),
 [issue #9 storage boundary](https://github.com/gmui-gandg/muicraft-blackjack/issues/9),
-and [issue #10 gameplay/storage integration](https://github.com/gmui-gandg/muicraft-blackjack/issues/10).
+[issue #10 gameplay/storage integration](https://github.com/gmui-gandg/muicraft-blackjack/issues/10),
+and issue #11 Help/keyboard accessibility.
 No schedules, automatic merges, or deployments are enabled.
+
+## Help and keyboard accessibility
+
+Tab to Help and use Enter or Space. Close Help receives focus; Tab and Shift+Tab
+stay inside, Escape closes, and focus returns to Help. H/S/D/P invoke eligible
+Hit/Stand/Double/Split through the existing session dispatch. Enter on neutral page
+focus invokes Deal, Hit or Next Hand for the current phase; Enter on a focused
+button activates that button instead. Editors and selects keep native behavior.
+Held/repeated keys, modifier/composition events and open dialogs suppress gameplay
+shortcuts. Release a key before another action. The primary action is displayed.
+
+Player result regions announce explicit outcome, returned chips and numeric net
+per hand. Concealed dealer cards remain unnamed. Disabled reasons and session
+recovery/storage notices are readable without hover. Motion selection remains
+keyboard-operable and persisted; audio stays muted. See [rules](docs/RULES.md).
+Component dispatch assertions and Chromium keyboard journeys cover this scope;
+they do not establish every screen reader's spoken behavior, full MVP acceptance
+or deployment acceptance. Issues #12 and #13 remain separate.

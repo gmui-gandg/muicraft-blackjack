@@ -1,4 +1,5 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { HelpDialog } from '../components/HelpDialog';
 import type { HandView } from '../components/Table';
 import type { PlaySession } from './session';
 import { MOTION_SETTINGS } from '../storage/session';
@@ -33,13 +34,94 @@ function controlState(state: GameState, event: GameEvent): ControlState {
     : { enabled: false, reason: reasons[permission.reason] };
 }
 
+const shortcuts = [
+  { key: 'h', label: 'Hit', type: 'HIT' },
+  { key: 's', label: 'Stand', type: 'STAND' },
+  { key: 'd', label: 'Double', type: 'DOUBLE' },
+  { key: 'p', label: 'Split', type: 'SPLIT' },
+] as const;
+
+function primary(state: GameState): GameEvent | undefined {
+  switch (state.phase) {
+    case 'BETTING':
+      return { type: 'DEAL' };
+    case 'PLAYER_TURN':
+      return { type: 'HIT' };
+    case 'ROUND_COMPLETE':
+      return { type: 'NEXT_HAND' };
+  }
+}
+
+function dispatchLegal(session: PlaySession, event: GameEvent) {
+  if (eligibility(session.getSnapshot().result.state, event).allowed)
+    session.dispatch(event);
+}
+
 export function PlayableRound({ session }: { session: PlaySession }) {
   const { result, saved } = useSyncExternalStore(
     session.subscribe,
     session.getSnapshot,
   );
+  const modalOpen = useRef(false);
+  const confirming = useRef(false);
+  useEffect(() => {
+    const held = new Set<string>();
+    function keydown(event: KeyboardEvent) {
+      const key = event.key.toLowerCase();
+      const command = shortcuts.find((shortcut) => shortcut.key === key);
+      if (!command && key !== 'enter') return;
+      const code = event.code || key;
+      const duplicate = held.has(code) || event.repeat;
+      held.add(code);
+      const target = event.target instanceof Element ? event.target : null;
+      const editableRoot = target?.closest(
+        '[contenteditable=""], [contenteditable="true" i], [contenteditable="plaintext-only" i], [contenteditable="false" i]',
+      );
+      const editor =
+        target?.closest('input, textarea, select') ||
+        (editableRoot &&
+          editableRoot.getAttribute('contenteditable')?.toLowerCase() !==
+            'false');
+      const modified =
+        event.ctrlKey ||
+        event.altKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.isComposing ||
+        event.keyCode === 229;
+      if (duplicate || modified || event.defaultPrevented) {
+        if (key === 'enter' && !editor && target?.closest('button'))
+          event.preventDefault();
+        return;
+      }
+      if (editor || modalOpen.current || confirming.current) return;
+      if (
+        key === 'enter' &&
+        target?.closest('button, a, summary, [role="button"]')
+      )
+        return;
+      const action = command
+        ? { type: command.type }
+        : primary(session.getSnapshot().result.state);
+      if (action) {
+        event.preventDefault();
+        dispatchLegal(session, action);
+      }
+    }
+    const keyup = (event: KeyboardEvent) =>
+      held.delete(event.code || event.key.toLowerCase());
+    const blur = () => held.clear();
+    document.addEventListener('keydown', keydown, true);
+    document.addEventListener('keyup', keyup, true);
+    window.addEventListener('blur', blur);
+    return () => {
+      document.removeEventListener('keydown', keydown, true);
+      document.removeEventListener('keyup', keyup, true);
+      window.removeEventListener('blur', blur);
+    };
+  }, [session]);
   const state = result.state;
-  const dispatch = session.dispatch;
+  const dispatch = (event: GameEvent) => dispatchLegal(session, event);
   const action = (label: string, event: GameEvent): Control => ({
     label,
     ...controlState(state, event),
@@ -48,26 +130,32 @@ export function PlayableRound({ session }: { session: PlaySession }) {
   const concealed = state.phase === 'PLAYER_TURN';
   const dealerCards = state.round?.dealer ?? [];
   const visibleDealer = concealed ? dealerCards.slice(0, 1) : dealerCards;
-  const actions = [
-    action('Deal', { type: 'DEAL' }),
-    action('Hit', { type: 'HIT' }),
-    action('Stand', { type: 'STAND' }),
-    action('Double', { type: 'DOUBLE' }),
-    action('Split', { type: 'SPLIT' }),
-    action('Next Hand', { type: 'NEXT_HAND' }),
-  ];
-  if (
-    (state.phase === 'BETTING' || state.phase === 'ROUND_COMPLETE') &&
-    state.balance < WAGER_LIMITS.min
-  ) {
-    actions.push({
-      label: 'Reset Virtual Bankroll',
-      enabled: true,
-      onActivate: () => {
-        session.reset(window.confirm('Reset Virtual Bankroll to 1,000 chips?'));
-      },
-    });
+  function resetBankroll() {
+    confirming.current = true;
+    try {
+      if (window.confirm('Reset Virtual Bankroll to 1,000 chips?'))
+        session.reset(true);
+    } finally {
+      confirming.current = false;
+    }
   }
+  const depleted =
+    (state.phase === 'BETTING' || state.phase === 'ROUND_COMPLETE') &&
+    state.balance < WAGER_LIMITS.min;
+  const actions: Control[] = [
+    action('Deal', { type: 'DEAL' }),
+    ...shortcuts.map(({ label, type }) => action(label, { type })),
+    action('Next Hand', { type: 'NEXT_HAND' }),
+    ...(depleted
+      ? [
+          {
+            label: 'Reset Virtual Bankroll',
+            enabled: true as const,
+            onActivate: resetBankroll,
+          },
+        ]
+      : []),
+  ];
   const playerView = (index: 0 | 1): HandView => {
     const hand = state.round?.hands[index];
     const result =
@@ -109,10 +197,26 @@ export function PlayableRound({ session }: { session: PlaySession }) {
       : [playerView(0)];
   return (
     <div className={styles.game} data-motion={saved.preferences.motion}>
-      {saved.notices.map((notice) => (
-        <p key={notice}>{notice}</p>
-      ))}
+      <div aria-live="polite" aria-atomic="true" aria-label="Session notices">
+        {saved.notices.map((notice) => (
+          <p key={notice}>{notice}</p>
+        ))}
+      </div>
       <div className={styles.preferences}>
+        <HelpDialog
+          onOpenChange={(open) => {
+            modalOpen.current = open;
+          }}
+          shortcuts={
+            <ul>
+              {shortcuts.map(({ key, label }) => (
+                <li key={key}>
+                  {key.toUpperCase()}: {label}
+                </li>
+              ))}
+            </ul>
+          }
+        />
         <label>
           Motion{' '}
           <select
@@ -164,6 +268,17 @@ export function PlayableRound({ session }: { session: PlaySession }) {
           </select>
         </label>
       </div>
+      <p>
+        Primary action:{' '}
+        {state.phase === 'BETTING'
+          ? 'Deal'
+          : state.phase === 'PLAYER_TURN'
+            ? 'Hit'
+            : state.phase === 'ROUND_COMPLETE'
+              ? 'Next Hand'
+              : 'none'}{' '}
+        (Enter on the page)
+      </p>
       {!result.accepted && <p role="alert">{reasons[result.reason]}</p>}
       <Table
         balance={state.balance}

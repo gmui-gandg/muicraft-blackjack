@@ -54,28 +54,52 @@ export function PlayingCard({ card }: { card: CardView }) {
   );
 }
 
-function Hand({ hand, active = false }: { hand: HandView; active?: boolean }) {
+function Hand({
+  hand,
+  active = false,
+  player = false,
+}: {
+  hand?: HandView;
+  active?: boolean;
+  player?: boolean;
+}) {
   const headingId = useId();
   return (
     <section
-      className={`${styles.hand} ${active ? styles.active : ''}`}
-      aria-labelledby={headingId}
+      className={
+        hand
+          ? `${styles.hand} ${active ? styles.active : ''}`
+          : styles.pendingHand
+      }
+      aria-labelledby={hand ? headingId : undefined}
     >
-      <h3 id={headingId}>
-        {hand.label}{' '}
-        {active && <span className={styles.badge}>Active hand</span>}
-      </h3>
-      <p className={styles.total}>{hand.total}</p>
-      <div className={styles.cards}>
-        {hand.cards.map((card, index) => (
-          <PlayingCard key={index} card={card} />
-        ))}
-      </div>
-      {hand.stake !== undefined && <p>Stake: {hand.stake}</p>}
-      {hand.outcome && (
-        <p role="status">
-          <strong>{hand.outcome.label}</strong> · Return:{' '}
-          {hand.outcome.returned} · Net: {hand.outcome.net}
+      {hand && (
+        <>
+          <h3 id={headingId}>
+            {hand.label}{' '}
+            {active && <span className={styles.badge}>Active hand</span>}
+          </h3>
+          <p className={styles.total}>{hand.total}</p>
+          <div className={styles.cards}>
+            {hand.cards.map((card, index) => (
+              <PlayingCard key={index} card={card} />
+            ))}
+          </div>
+          {hand.stake !== undefined && <p>Stake: {hand.stake}</p>}
+        </>
+      )}
+      {player && (
+        <p
+          role="status"
+          aria-atomic="true"
+          aria-label={`${hand?.label ?? 'Your hand 2'} result`}
+        >
+          {hand?.outcome && (
+            <>
+              <strong>{hand.outcome.label}</strong> · Return:{' '}
+              {hand.outcome.returned} · Net: {hand.outcome.net}
+            </>
+          )}
         </p>
       )}
     </section>
@@ -192,9 +216,14 @@ export function Table({
         <p className={styles.tableMark}>
           MuiCraft Blackjack <span>Virtual chips · No cash value</span>
         </p>
-        <div className={styles.players}>
-          {players.map((hand, index) => (
-            <Hand key={index} hand={hand} active={activeHand === index} />
+        <div className={styles.players} data-single={players.length === 1}>
+          {([0, 1] as const).map((index) => (
+            <Hand
+              key={index}
+              hand={players[index]}
+              active={activeHand === index}
+              player
+            />
           ))}
         </div>
       </div>

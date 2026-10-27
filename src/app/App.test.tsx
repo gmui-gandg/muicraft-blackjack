@@ -24,7 +24,9 @@ test('production offers gameplay and honestly explains reloads', () => {
     screen.getByRole('heading', { name: 'MuiCraft Blackjack' }),
   ).toBeVisible();
   expect(screen.getByText(/Reload restores settled chips/)).toBeVisible();
-  expect(screen.getByText(/For entertainment only/)).toBeVisible();
+  expect(
+    screen.getByText('For entertainment only — virtual chips, no cash value.'),
+  ).toBeVisible();
   for (const name of ['Double', 'Split'])
     expect(screen.getByRole('button', { name })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Deal' })).toBeDisabled();
@@ -62,9 +64,11 @@ for (const entry of roundCases) {
       click('Stand');
     }
     expect(balance()).toHaveTextContent(String(entry.balance));
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(screen.getAllByRole('status')[0]!).toHaveTextContent(
       `Return: ${entry.returned} · Net: ${entry.net}`,
     );
+    expect(screen.getAllByRole('status')).toHaveLength(2);
+    expect(screen.getAllByRole('status')[1]!).toBeEmptyDOMElement();
     expect(screen.queryByRole('img', { name: 'Concealed card' })).toBeNull();
     if (entry.name === 'dealer-bust')
       expect(
@@ -259,7 +263,9 @@ test('playable caller displays a failed dealer advance without claiming settleme
     'No cards remain in this shoe.',
   );
   expect(balance()).toHaveTextContent('990');
-  expect(screen.queryByRole('status')).toBeNull();
+  screen
+    .getAllByRole('status')
+    .forEach((region) => expect(region).toBeEmptyDOMElement());
   expect(screen.getByRole('button', { name: 'Next Hand' })).toBeDisabled();
   expect(
     within(screen.getByRole('region', { name: 'Dealer' })).getAllByRole('img'),

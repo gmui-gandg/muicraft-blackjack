@@ -75,7 +75,9 @@ for (const label of outcomeLabels) {
       />,
     );
     expect(screen.getByText('Stake: 73')).toBeVisible();
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(screen.getAllByRole('status')).toHaveLength(2);
+    expect(screen.getAllByRole('status')[1]!).toBeEmptyDOMElement();
+    expect(screen.getAllByRole('status')[0]!).toHaveTextContent(
       `${label} · Return: 123 · Net: -9`,
     );
   });

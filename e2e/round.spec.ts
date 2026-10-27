@@ -81,7 +81,9 @@ for (const entry of roundCases) {
       await activate(page, 'Stand', touch);
     }
     await expect(balance).toHaveText(String(entry.balance));
-    await expect(page.getByRole('status')).toHaveText(
+    await expect(page.getByRole('status')).toHaveCount(2);
+    await expect(page.getByRole('status').nth(1)).toBeEmpty();
+    await expect(page.getByRole('status').first()).toHaveText(
       `${entry.net < 0 ? 'Loss' : entry.net === 0 ? 'Push' : 'Win'} · Return: ${entry.returned} · Net: ${entry.net}`,
     );
     await expect(page.getByRole('img', { name: 'Concealed card' })).toHaveCount(
@@ -254,6 +256,18 @@ test('built production entry starts a real round without fixture controls', asyn
     await expect(
       page.getByRole('heading', { name: 'MuiCraft Blackjack' }),
     ).toBeVisible();
+    await page.keyboard.press('Tab');
+    await expect(
+      page.getByRole('button', { name: 'Help', exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByRole('button', { name: 'Close Help' }),
+    ).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(
+      page.getByRole('button', { name: 'Help', exact: true }),
+    ).toBeFocused();
     await activate(page, 'Add 10 chips', hasTouch === true);
     await activate(page, 'Deal', hasTouch === true);
     await expect(page.getByRole('img')).toHaveCount(4);
@@ -261,6 +275,26 @@ test('built production entry starts a real round without fixture controls', asyn
       await page.getByRole('button', { name: 'Stand', exact: true }).isEnabled()
     )
       await activate(page, 'Stand', hasTouch === true);
+    await expect(page.getByRole('button', { name: 'Next Hand' })).toBeEnabled();
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement)
+        document.activeElement.blur();
+    });
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('img')).toHaveCount(0);
+    for (const name of ['Add 10 chips', 'Deal']) {
+      const target = page.getByRole('button', { name, exact: true });
+      for (let tabs = 0; tabs < 25; tabs++) {
+        await page.keyboard.press('Tab');
+        if (
+          await target.evaluate((element) => element === document.activeElement)
+        )
+          break;
+      }
+      await expect(target).toBeFocused();
+      await page.keyboard.press('Enter');
+    }
+    await page.keyboard.press('s');
     await expect(page.getByRole('button', { name: 'Next Hand' })).toBeEnabled();
   } finally {
     server.closeAllConnections();
