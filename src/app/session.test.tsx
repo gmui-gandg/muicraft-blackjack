@@ -15,6 +15,84 @@ const ranks = ['Q', 'A', 'Q', '6', '2', '3', '8', '7'] as const;
 const read = (storage: ReturnType<typeof memoryStorage>) =>
   JSON.parse(storage.getItem('muicraft-blackjack.session')!);
 
+test('rejected unsafe settlement is explained visibly and preserves the last settled bytes', () => {
+  const storage = memoryStorage(Number.MAX_SAFE_INTEGER);
+  const session = createPlaySession(
+    createSessionStorage(() => storage),
+    (saved) => ({
+      ...roundState(['A', '9', 'K', '7'], saved.settledBankroll),
+      wager: saved.dealWager ?? 0,
+    }),
+  );
+  const view = render(<PlayableRound session={session} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Deal' }));
+  expect(session.getSnapshot().result.state.phase).toBe('ROUND_COMPLETE');
+  expect(Number.isSafeInteger(session.getSnapshot().result.state.balance)).toBe(
+    false,
+  );
+  expect(screen.getByText(/Settlement could not be saved/)).toBeVisible();
+  expect(read(storage)).toMatchObject({
+    settledBankroll: Number.MAX_SAFE_INTEGER,
+    roundPending: true,
+  });
+  expect(storage.writes).toHaveLength(1);
+  session.dispatch({ type: 'SETTLE' });
+  expect(storage.writes).toHaveLength(1);
+  expect(session.getSnapshot().saved.notices).toHaveLength(1);
+  view.unmount();
+  const recreated = createPlaySession(createSessionStorage(() => storage));
+  expect(recreated.getSnapshot().result.state.balance).toBe(
+    Number.MAX_SAFE_INTEGER,
+  );
+  expect(recreated.getSnapshot().saved.notices).toEqual([
+    'Unfinished hand discarded. Restored the last settled bankroll.',
+  ]);
+});
+
+test('startup and confirmed depleted reset project saved bankroll and affordable wager', () => {
+  const storage = memoryStorage(19);
+  const adapter = createSessionStorage(() => storage);
+  adapter.updatePreferences({
+    selectedWager: 50,
+    motion: 'reduced',
+    audio: 'muted',
+  });
+  expect(createPlaySession(adapter).getSnapshot().result.state).toMatchObject({
+    phase: 'BETTING',
+    balance: 19,
+    wager: 10,
+  });
+  for (const complete of [false, true]) {
+    const depleted = memoryStorage(0);
+    const session = createPlaySession(
+      createSessionStorage(() => depleted),
+      complete
+        ? () =>
+            dispatchRound(
+              { ...roundState(['10', 'A', '8', 'K'], 10), wager: 10 },
+              { type: 'DEAL' },
+            ).state
+        : undefined,
+    );
+    if (!complete) expect(session.getSnapshot().result.state.wager).toBe(0);
+    session.reset(false);
+    expect(depleted.writes).toHaveLength(0);
+    session.reset(true);
+    const recreated = createPlaySession(createSessionStorage(() => depleted));
+    expect(session.getSnapshot().result.state).toMatchObject({
+      phase: 'BETTING',
+      balance: 1000,
+      wager: 10,
+    });
+    expect(session.getSnapshot().saved).toEqual(recreated.getSnapshot().saved);
+    expect(recreated.getSnapshot().result.state).toMatchObject({
+      phase: 'BETTING',
+      balance: 1000,
+      wager: 10,
+    });
+  }
+});
+
 test('StrictMode replay and remount recover once and never duplicate a financial write', () => {
   const storage = memoryStorage();
   const adapter = createSessionStorage(() => storage);
