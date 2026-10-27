@@ -17,6 +17,9 @@ const reasons: Record<RejectionReason, string> = {
   WAGER_REQUIRED: 'Choose wager chips before dealing.',
   NOT_IMPLEMENTED: 'This action is not available yet.',
   SHOE_EXHAUSTED: 'No cards remain in this shoe.',
+  HAND_COMPLETE: 'This hand is already complete.',
+  TWO_CARDS_REQUIRED: 'Double requires the first two cards.',
+  SPLIT_ACES: 'Split aces receive only one additional card.',
 };
 
 function controlState(state: GameState, event: GameEvent): ControlState {

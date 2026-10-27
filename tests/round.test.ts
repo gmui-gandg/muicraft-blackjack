@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, expectTypeOf, test, vi } from 'vitest';
 import { createCards, type Rank } from '../src/game/cards.js';
 import {
   createGame,
@@ -6,6 +6,7 @@ import {
   transition,
   type GameEvent,
   type GameState,
+  type PlayerHand,
 } from '../src/game/round.js';
 import { Shoe } from '../src/game/shoe.js';
 
@@ -49,6 +50,8 @@ function reject(state: GameState, event: GameEvent, reason: string) {
   const rng = vi.fn(() => 0);
   const result = transition(state, event, rng);
   expect(result).toEqual({ accepted: false, state, reason });
+  if (['HIT', 'STAND', 'DOUBLE'].includes(event.type))
+    expect(eligibility(state, event)).toEqual({ allowed: false, reason });
   expect(result.state).toBe(state);
   expect(state).toEqual(before);
   expect(rng).not.toHaveBeenCalled();
@@ -58,7 +61,7 @@ function owned(state: GameState) {
   return [
     ...state.shoe,
     ...state.discards,
-    ...(state.round?.hands[0].cards ?? []),
+    ...(state.round?.hands.flatMap((hand) => hand.cards) ?? []),
     ...(state.round?.dealer ?? []),
   ];
 }
@@ -253,7 +256,7 @@ describe('ordinary transitions and ledger', () => {
 });
 
 describe('phase enforcement and next round', () => {
-  test('rejects every out-of-phase event and keeps Double/Split unavailable', () => {
+  test('rejects every out-of-phase event and keeps Split unavailable', () => {
     const player = deal('10', '10', '8', '7');
     const dealer = act(player, { type: 'STAND' });
     const settlement = act(dealer, { type: 'DEALER_TURN' });
@@ -272,15 +275,14 @@ describe('phase enforcement and next round', () => {
     ];
     const phases: Record<string, string[]> = {
       BETTING: ['PLACE_BET', 'DEAL'],
-      PLAYER_TURN: ['HIT', 'STAND'],
+      PLAYER_TURN: ['HIT', 'STAND', 'DOUBLE'],
       DEALER_TURN: ['DEALER_TURN'],
       SETTLEMENT: ['SETTLE'],
       ROUND_COMPLETE: ['NEXT_HAND'],
     };
     for (const state of states) {
       for (const event of events) {
-        if (event.type === 'DOUBLE' || event.type === 'SPLIT')
-          reject(state, event, 'NOT_IMPLEMENTED');
+        if (event.type === 'SPLIT') reject(state, event, 'NOT_IMPLEMENTED');
         else if (!phases[state.phase]!.includes(event.type))
           reject(state, event, 'WRONG_PHASE');
       }
@@ -362,4 +364,291 @@ describe('phase enforcement and next round', () => {
     expect(snapshot).toHaveLength(312);
     expect(shoe.remaining).toBe(311);
   });
+});
+
+describe('funded two-card Double', () => {
+  test('singleton rounds cannot carry split-ace restrictions', () => {
+    type InvalidRound = {
+      hands: readonly [PlayerHand & { readonly splitAces: true }];
+      dealer: PlayerHand['cards'];
+    };
+    expectTypeOf<InvalidRound>().not.toExtend<
+      NonNullable<GameState['round']>
+    >();
+    const start = deal('5', '10', '6', '7', '2');
+    expect(start.round?.hands).toHaveLength(1);
+    expect(start.round?.hands[0].splitAces).toBe(false);
+    for (const type of ['HIT', 'STAND', 'DOUBLE'] as const)
+      expect(eligibility(start, { type })).toEqual({ allowed: true });
+  });
+
+  test.each([
+    { draw: '7', outcome: 'win', returned: 40, balance: 1020 },
+    { draw: '6', outcome: 'push', returned: 20, balance: 1000 },
+    { draw: '2', outcome: 'loss', returned: 0, balance: 980 },
+  ] as const)(
+    '$outcome: commits 20, returns $returned and settles at $balance',
+    ({ draw, outcome, returned, balance }) => {
+      const start = deal('5', '10', '6', '7', draw);
+      expect(eligibility(start, { type: 'DOUBLE' })).toEqual({ allowed: true });
+      const doubled = act(start, { type: 'DOUBLE' });
+      expect(doubled).toMatchObject({
+        balance: 980,
+        phase: 'DEALER_TURN',
+        activeHandIndex: null,
+      });
+      expect(doubled.round?.hands[0]).toEqual({
+        ...start.round!.hands[0],
+        cards: [...start.round!.hands[0].cards, start.shoe[0]],
+        stake: 20,
+        complete: true,
+      });
+      expect(doubled.shoe).toEqual(start.shoe.slice(1));
+      expect(doubled.discards).toBe(start.discards);
+      expect(doubled.round?.dealer).toBe(start.round?.dealer);
+      expect(doubled.history).toEqual([...start.history, { type: 'DOUBLE' }]);
+      expect(owned(doubled)).toHaveLength(owned(start).length);
+      expect(new Set(owned(doubled))).toEqual(new Set(owned(start)));
+      for (const type of ['HIT', 'STAND', 'DOUBLE'] as const)
+        reject(doubled, { type }, 'WRONG_PHASE');
+      const end = act(act(doubled, { type: 'DEALER_TURN' }), {
+        type: 'SETTLE',
+      });
+      expect(end).toMatchObject({ outcome, returned, balance });
+      const betting = act(end, { type: 'NEXT_HAND' });
+      expect(new Set(owned(betting))).toEqual(new Set(owned(start)));
+      expect(betting.discards).toHaveLength(5);
+    },
+  );
+
+  test('exact additional funds allow Double; one chip short rejects atomically', () => {
+    const start = deal('5', '10', '6', '7', '2');
+    reject({ ...start, balance: 9 }, { type: 'DOUBLE' }, 'INSUFFICIENT_FUNDS');
+    const exact = { ...start, balance: 10 };
+    expect(eligibility(exact, { type: 'DOUBLE' })).toEqual({ allowed: true });
+    expect(act(exact, { type: 'DOUBLE' })).toMatchObject({ balance: 0 });
+  });
+
+  test('third card and exhausted shoe reject without consuming or recording anything', () => {
+    const start = deal('5', '10', '6', '7', '2');
+    reject(
+      act(start, { type: 'HIT' }),
+      { type: 'DOUBLE' },
+      'TWO_CARDS_REQUIRED',
+    );
+    reject({ ...start, shoe: [] }, { type: 'DOUBLE' }, 'SHOE_EXHAUSTED');
+  });
+
+  test.each([
+    { ranks: ['10', '10', '6', '7', 'K'], balance: 980, outcome: 'loss' },
+    { ranks: ['5', '10', '6', '7', '10'], balance: 1020, outcome: 'win' },
+  ] satisfies { ranks: Rank[]; balance: number; outcome: string }[])(
+    '$ranks: Double bust skips dealer draws; 21 pays ordinary stakes',
+    ({ ranks, balance, outcome }) => {
+      const start = deal(...ranks);
+      let state = act(start, { type: 'DOUBLE' });
+      if (state.phase === 'DEALER_TURN')
+        state = act(act(state, { type: 'DEALER_TURN' }), { type: 'SETTLE' });
+      expect(state).toMatchObject({
+        phase: 'ROUND_COMPLETE',
+        balance,
+        outcome,
+      });
+      expect(state.shoe).toEqual(start.shoe.slice(1));
+      expect(state.round?.dealer).toEqual(start.round?.dealer);
+    },
+  );
+});
+
+// Unit hand-state fixtures only: SPLIT and the Split→Double journey remain deferred.
+function splitFixture(activeHandIndex: 0 | 1, aces = false): GameState {
+  const state = aces
+    ? deal('A', '10', '5', '7', 'A', '6', '2')
+    : deal('8', '10', '5', '7', '8', '6', '2');
+  if (state.phase !== 'PLAYER_TURN') throw new Error('Expected player fixture');
+  return {
+    ...state,
+    balance: 980,
+    activeHandIndex,
+    shoe: state.shoe.slice(2),
+    round: {
+      dealer: state.round.dealer,
+      hands: [
+        {
+          ...state.round.hands[0],
+          splitAces: aces,
+          complete: activeHandIndex === 1,
+        },
+        {
+          cards: state.shoe.slice(0, 2),
+          stake: 10,
+          splitAces: aces,
+          complete: false,
+        },
+      ],
+    },
+  };
+}
+
+describe('split hand-state unit coverage (no Split operation or integration journey)', () => {
+  test.each(['HIT', 'DOUBLE'] as const)(
+    '%s: two busted unit hands settle without dealer draws',
+    (type) => {
+      const source = fixture('10', '6', '10', '6', '2', '3', 'K', 'K');
+      const start: GameState = {
+        ...source,
+        phase: 'PLAYER_TURN',
+        balance: 980,
+        wager: 10,
+        activeHandIndex: 0,
+        shoe: source.shoe.slice(6),
+        round: {
+          dealer: source.shoe.slice(4, 6),
+          hands: [
+            {
+              cards: source.shoe.slice(0, 2),
+              stake: 10,
+              complete: false,
+              splitAces: false,
+            },
+            {
+              cards: source.shoe.slice(2, 4),
+              stake: 10,
+              complete: false,
+              splitAces: false,
+            },
+          ],
+        },
+      };
+      const first = act(start, { type });
+      expect(first).toMatchObject({ phase: 'PLAYER_TURN', activeHandIndex: 1 });
+      expect(first.round?.hands[0].complete).toBe(true);
+      expect(first.round?.hands[1]).toBe(start.round?.hands[1]);
+      const end = act(first, { type });
+      expect(end).toMatchObject({
+        phase: 'ROUND_COMPLETE',
+        activeHandIndex: null,
+        outcome: 'loss',
+        returned: 0,
+        balance: type === 'DOUBLE' ? 960 : 980,
+      });
+      expect(end.round?.hands.every((hand) => hand.complete)).toBe(true);
+      expect(end.round?.hands.map((hand) => hand.stake)).toEqual(
+        type === 'DOUBLE' ? [20, 20] : [10, 10],
+      );
+      expect(end.round?.dealer).toBe(start.round?.dealer);
+      expect(end.shoe).toEqual(start.shoe.slice(2));
+      expect(end.discards).toBe(start.discards);
+      expect(end.history).toEqual([...start.history, { type }, { type }]);
+      expect(owned(end)).toHaveLength(owned(start).length);
+      expect(new Set(owned(end))).toEqual(new Set(owned(start)));
+    },
+  );
+
+  test.each([0, 1] as const)(
+    'Double on active non-ace split hand %i',
+    (index) => {
+      const start = splitFixture(index);
+      expect(eligibility(start, { type: 'DOUBLE' })).toEqual({ allowed: true });
+      const next = act(start, { type: 'DOUBLE' });
+      expect(next.balance).toBe(970);
+      expect(next.round?.hands[index]).toEqual({
+        ...start.round!.hands[index],
+        cards: [...start.round!.hands[index]!.cards, start.shoe[0]],
+        stake: 20,
+        complete: true,
+      });
+      const other = index === 0 ? 1 : 0;
+      expect(next.round?.hands[other]).toBe(start.round?.hands[other]);
+      expect(next.activeHandIndex).toBe(index === 0 ? 1 : null);
+      expect(next.phase).toBe(index === 0 ? 'PLAYER_TURN' : 'DEALER_TURN');
+      expect(next.shoe).toEqual(start.shoe.slice(1));
+      expect(next.discards).toBe(start.discards);
+      expect(next.round?.dealer).toBe(start.round?.dealer);
+      expect(next.history).toEqual([...start.history, { type: 'DOUBLE' }]);
+      expect(owned(next)).toHaveLength(79);
+      expect(new Set(owned(next))).toEqual(new Set(owned(start)));
+    },
+  );
+
+  test.each([0, 1] as const)(
+    'split aces at active index %i refuse all player actions',
+    (index) => {
+      const start = splitFixture(index, true);
+      for (const type of ['HIT', 'STAND', 'DOUBLE'] as const)
+        reject(start, { type }, 'SPLIT_ACES');
+    },
+  );
+
+  test('completed and already doubled hands refuse all player actions', () => {
+    const start = splitFixture(0);
+    const doubled = act(start, { type: 'DOUBLE' });
+    if (doubled.phase !== 'PLAYER_TURN') throw new Error('Expected next hand');
+    const repeated = { ...doubled, activeHandIndex: 0 as const };
+    const complete = splitFixture(1);
+    if (complete.phase !== 'PLAYER_TURN')
+      throw new Error('Expected split state');
+    const completed = { ...complete, activeHandIndex: 0 as const };
+    for (const state of [repeated, completed])
+      for (const type of ['HIT', 'STAND', 'DOUBLE'] as const)
+        reject(state, { type }, 'HAND_COMPLETE');
+  });
+
+  test('unit settlement and discard retain both hands and treat split 21 as ordinary', () => {
+    const source = fixture('A', 'K', '8', '6', '10', '7', '2');
+    const state: GameState = {
+      ...source,
+      phase: 'PLAYER_TURN',
+      balance: 980,
+      wager: 10,
+      activeHandIndex: 1,
+      shoe: source.shoe.slice(6),
+      round: {
+        dealer: source.shoe.slice(4, 6),
+        hands: [
+          {
+            cards: source.shoe.slice(0, 2),
+            splitAces: false,
+            stake: 10,
+            complete: true,
+          },
+          {
+            cards: source.shoe.slice(2, 4),
+            splitAces: false,
+            stake: 10,
+            complete: false,
+          },
+        ],
+      },
+    };
+    const doubled = act(state, { type: 'DOUBLE' });
+    const end = act(act(doubled, { type: 'DEALER_TURN' }), { type: 'SETTLE' });
+    expect(end).toMatchObject({
+      phase: 'ROUND_COMPLETE',
+      outcome: 'mixed',
+      returned: 20,
+      balance: 990,
+    });
+    expect(end.round?.hands.map((hand) => hand.stake)).toEqual([10, 20]);
+    expect(end.round?.hands.every((hand) => hand.complete)).toBe(true);
+    const betting = act(end, { type: 'NEXT_HAND' });
+    expect(betting.discards).toHaveLength(7);
+    expect(owned(betting)).toHaveLength(79);
+    expect(new Set(owned(betting))).toEqual(new Set(owned(state)));
+  });
+
+  test.each(['HIT', 'STAND'] as const)(
+    '%s respects active hand and preserves its sibling',
+    (type) => {
+      const start = splitFixture(1);
+      const next = act(start, { type });
+      expect(next.round?.hands[0]).toBe(start.round?.hands[0]);
+      expect(next.round?.hands[1]?.stake).toBe(10);
+      expect(next.balance).toBe(start.balance);
+      expect(next.activeHandIndex).toBe(type === 'HIT' ? 1 : null);
+      expect(next.shoe).toEqual(
+        type === 'HIT' ? start.shoe.slice(1) : start.shoe,
+      );
+    },
+  );
 });
