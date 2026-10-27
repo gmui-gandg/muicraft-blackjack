@@ -219,7 +219,9 @@ test('built production entry starts a real round without fixture controls', asyn
   for (const asset of assets.filter((path) => path.endsWith('.js'))) {
     expect(
       await readFile(join(projectRoot, 'dist', asset), 'utf8'),
-    ).not.toMatch(/Development gameplay fixture|player-natural|round-fixture/);
+    ).not.toMatch(
+      /Development gameplay fixture|player-natural|round-fixture|integrationEvidence|Test-only simulated unload/,
+    );
   }
   const server = createServer(async (request, response) => {
     const path = request.url === '/' ? '/index.html' : (request.url ?? '');

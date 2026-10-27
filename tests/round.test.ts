@@ -821,6 +821,12 @@ describe('funded same-rank Split journeys', () => {
         balance,
         returned: returns[0]! + returns[1]!,
       });
+      if (end.phase !== 'ROUND_COMPLETE')
+        throw new Error('Expected settlement');
+      expect(end.results.map((result) => result.returned)).toEqual(returns);
+      expect(end.results.map((result) => result.net)).toEqual(
+        returns.map((value) => value - 10),
+      );
       expect(end.round?.hands.map((hand) => hand.stake)).toEqual([10, 10]);
       expect(end.round?.hands.every((hand) => hand.complete)).toBe(true);
       expect(end.history.map((event) => event.type)).toEqual([

@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import { testSession } from './play-session';
 import { PlayableRound } from '../app/PlayableRound';
 import { roundCases, roundState } from './round-fixtures';
 import '../styles/global.css';
@@ -10,12 +11,12 @@ createRoot(document.getElementById('root')!).render(
   <main style={{ maxWidth: 1200, margin: 'auto', padding: 12 }}>
     <h1>Development gameplay fixture: {scenario}</h1>
     <PlayableRound
-      initialState={() =>
+      session={testSession(() =>
         roundState(
           fixture.ranks,
           scenario === 'reset' ? 5 : scenario === 'low' ? 60 : 1000,
-        )
-      }
+        ),
+      )}
     />
   </main>,
 );

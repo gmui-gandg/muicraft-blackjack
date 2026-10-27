@@ -30,12 +30,12 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       page.getByRole('heading', { name: 'Take a seat' }),
     ).toBeVisible();
     await expect(
-      page.getByText(/Reload persistence is pending M3/),
+      page.getByText(/Reload restores settled chips and preferences/),
     ).toBeVisible();
     await expect(
       page.getByText(/For entertainment only — virtual chips, no cash value/),
     ).toBeVisible();
-    await expect(page.getByRole('button')).toHaveCount(7);
+    await expect(page.getByRole('button')).toHaveCount(9);
     const previewTargets = [];
     for (const button of await page.getByRole('button').all()) {
       const box = await button.boundingBox();

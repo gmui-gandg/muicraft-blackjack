@@ -3,6 +3,7 @@ import '../test/setup';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { App } from './App';
+import { testSession } from '../test/play-session';
 import { PlayableRound } from './PlayableRound';
 import { dispatchRound } from './dispatch';
 import {
@@ -18,13 +19,14 @@ const click = (name: string) =>
 const balance = () => screen.getByText('Balance').nextElementSibling;
 
 test('production offers gameplay and honestly explains reloads', () => {
-  render(<App />);
+  render(<App session={testSession()} />);
   expect(
     screen.getByRole('heading', { name: 'MuiCraft Blackjack' }),
   ).toBeVisible();
-  expect(screen.getByText(/Reload persistence is pending M3/)).toBeVisible();
+  expect(screen.getByText(/Reload restores settled chips/)).toBeVisible();
   expect(screen.getByText(/For entertainment only/)).toBeVisible();
-  expect(screen.queryByRole('button', { name: /Double|Split/ })).toBeNull();
+  for (const name of ['Double', 'Split'])
+    expect(screen.getByRole('button', { name })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Deal' })).toBeDisabled();
   click('Add 10 chips');
   expect(screen.getByRole('button', { name: 'Deal' })).toBeEnabled();
@@ -34,7 +36,7 @@ for (const entry of roundCases) {
   test(`playable ${entry.name} ledger and explicit next hand`, () => {
     const initial = roundState(entry.ranks);
     const { container } = render(
-      <PlayableRound initialState={() => initial} />,
+      <PlayableRound session={testSession(() => initial)} />,
     );
     click('Add 10 chips');
     click('Deal');
@@ -83,7 +85,7 @@ for (const entry of roundCases) {
 }
 
 test('each preset reflects engine amount eligibility at balance and max boundaries', () => {
-  render(<PlayableRound initialState={() => roundState([], 60)} />);
+  render(<PlayableRound session={testSession(() => roundState([], 60))} />);
   expect(
     screen.getByRole('button', { name: 'Add 100 chips' }),
   ).toHaveAccessibleDescription('Not enough available chips for this wager.');
@@ -97,7 +99,7 @@ test('each preset reflects engine amount eligibility at balance and max boundari
 });
 
 test('500 maximum and stale/repeated lifecycle commands cannot commit or pay twice', () => {
-  render(<PlayableRound />);
+  render(<PlayableRound session={testSession()} />);
   for (let index = 0; index < 5; index++) click('Add 100 chips');
   for (const value of [10, 50, 100])
     expect(
@@ -130,7 +132,7 @@ test('500 maximum and stale/repeated lifecycle commands cannot commit or pay twi
 });
 
 test('depleted reset cancel preserves balance and confirm restores exactly 1000', () => {
-  render(<PlayableRound initialState={() => roundState([], 5)} />);
+  render(<PlayableRound session={testSession(() => roundState([], 5))} />);
   const confirmation = vi.spyOn(window, 'confirm').mockReturnValue(false);
   click('Reset Virtual Bankroll');
   expect(balance()).toHaveTextContent('5');
@@ -160,11 +162,13 @@ test('rendered control eligibility agrees with engine in betting, player turn an
     { ...betting, wager: 510 },
     { ...betting, balance: 50, wager: 60 },
   ]) {
-    const view = render(<PlayableRound initialState={() => state} />);
+    const view = render(<PlayableRound session={testSession(() => state)} />);
     const controls: [string, GameEvent][] = [
       ['Deal', { type: 'DEAL' }],
       ['Hit', { type: 'HIT' }],
       ['Stand', { type: 'STAND' }],
+      ['Double', { type: 'DOUBLE' }],
+      ['Split', { type: 'SPLIT' }],
       ['Next Hand', { type: 'NEXT_HAND' }],
       ...([10, 50, 100] as const).map((value): [string, GameEvent] => [
         `Add ${value} chips`,
@@ -247,7 +251,9 @@ test('playable caller displays a failed dealer advance without claiming settleme
     amount: 10,
   }).state;
   const player = dispatchRound(betting, { type: 'DEAL' }).state;
-  render(<PlayableRound initialState={() => ({ ...player, shoe: [] })} />);
+  render(
+    <PlayableRound session={testSession(() => ({ ...player, shoe: [] }))} />,
+  );
   click('Stand');
   expect(screen.getByRole('alert')).toHaveTextContent(
     'No cards remain in this shoe.',

@@ -1,9 +1,10 @@
 # MuiCraft Blackjack acceptance journeys
 
-Source: `docs/PRD.md` v1.0. Because this repository starts with only a PRD, these
-describe target release behavior. None is currently implemented or verified.
-Use explicit milestone acceptance for M0; never report the full MVP gate as green
-for a scaffold. Runtime verification needs a real app and candidate identity.
+Source: `docs/PRD.md` v1.0. These journeys describe target release behavior.
+Issue #10 implements and tests ordinary rounds, naturals, Double/Split and
+settled-session recovery; see README and the milestone evidence for executed
+coverage. Rules/help, full production UX, deployment and full MVP acceptance
+remain pending. Runtime verification needs a real app and candidate identity.
 
 ## 1. Play and settle a round
 
