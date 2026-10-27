@@ -65,7 +65,7 @@
   cursor: pointer;
   min-height: 44px;
   min-width: 44px;
-  transition: background-color var(--effect-duration);
+  transition: background-color var(--control-motion-duration, 150ms);
 }
 .button {
   padding: 0.65rem 0.8rem;
@@ -244,6 +244,10 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .button,
+  .chip {
+    transition-duration: var(--control-motion-duration, 0ms);
+  }
   .table {
     --effect-duration: var(--motion-duration, 0ms);
     --sequence-step: var(--motion-step, 0ms);

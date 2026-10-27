@@ -437,8 +437,9 @@ concealed face flips at reveal; a decorative chip beside the settled balance and
 each hand's result move over 200 ms. Cards, totals, controls and payouts update
 immediately through the existing engine/session boundary. CSS completion events
 and timers never decide outcomes. Motion does not lock legal actions. Native
-multi-click repetitions are ignored by table controls; separate clicks, touch taps
-and fresh keyboard activations remain available. Held-key suppression and Help's
+multi-click repetitions on the same active hand are ignored; actions on the next
+split hand, wager chips, reset confirmation, separate clicks and fresh keyboard
+activations remain available. Held-key suppression and Help's
 focus lifecycle remain unchanged.
 
 System mode follows the live OS reduced-motion query, with all these durations

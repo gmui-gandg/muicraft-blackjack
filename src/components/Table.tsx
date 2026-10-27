@@ -1,4 +1,4 @@
-import { useId, type CSSProperties } from 'react';
+import { useId, useRef, type CSSProperties } from 'react';
 import type { Suit } from '../game/cards';
 import {
   chipDenominations,
@@ -120,12 +120,15 @@ export function ActionButton({
   control,
   chip,
   descriptionId,
+  activeHand = null,
 }: {
   control: Control;
   chip?: ChipDenomination;
   descriptionId?: string;
+  activeHand?: TableProps['activeHand'];
 }) {
   const reasonId = useId();
+  const lastActivatedHand = useRef(activeHand);
   return (
     <div className={styles.control}>
       <button
@@ -137,7 +140,14 @@ export function ActionButton({
           !control.enabled ? (descriptionId ?? reasonId) : undefined
         }
         onClick={(event) => {
-          if (event.detail <= 1) control.onActivate();
+          if (
+            activeHand === null ||
+            event.detail <= 1 ||
+            lastActivatedHand.current !== activeHand
+          ) {
+            lastActivatedHand.current = activeHand;
+            control.onActivate();
+          }
         }}
       >
         {chip ? <span>{chip}</span> : control.label}
@@ -153,10 +163,12 @@ function ControlGroup({
   controls,
   className,
   label,
+  activeHand,
 }: {
   controls: readonly (Control & { readonly chip?: ChipDenomination })[];
   className?: string;
   label: string;
+  activeHand?: TableProps['activeHand'];
 }) {
   const id = useId();
   const reasons = [
@@ -171,6 +183,7 @@ function ControlGroup({
           key={control.label}
           control={control}
           chip={control.chip}
+          activeHand={activeHand}
           descriptionId={
             control.enabled
               ? undefined
@@ -248,6 +261,7 @@ export function Table({
         className={styles.actions}
         label="Table actions"
         controls={actions}
+        activeHand={activeHand}
       />
     </section>
   );
