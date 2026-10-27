@@ -1,4 +1,9 @@
-import type { GameState } from '../game/round.js';
+import {
+  type GameState,
+  isValidWager,
+  STARTING_BANKROLL,
+  WAGER_LIMITS,
+} from '../game/round.js';
 
 export const SESSION_KEY = 'muicraft-blackjack.session';
 export const MOTION_SETTINGS = ['system', 'reduced', 'full'] as const;
@@ -18,8 +23,12 @@ export type StorageBoundary = Pick<Storage, 'getItem' | 'setItem'>;
 
 const defaults = (): RecordV1 => ({
   version: 1,
-  settledBankroll: 1000,
-  preferences: { selectedWager: 10, motion: 'system', audio: 'muted' },
+  settledBankroll: STARTING_BANKROLL,
+  preferences: {
+    selectedWager: WAGER_LIMITS.min,
+    motion: 'system',
+    audio: 'muted',
+  },
   roundPending: false,
 });
 
@@ -45,11 +54,7 @@ function preferences(value: unknown): value is Preferences {
   return (
     object(value) &&
     sameKeys(value, defaults().preferences) &&
-    typeof value.selectedWager === 'number' &&
-    Number.isInteger(value.selectedWager) &&
-    value.selectedWager >= 10 &&
-    value.selectedWager <= 500 &&
-    value.selectedWager % 10 === 0 &&
+    isValidWager(value.selectedWager) &&
     member(MOTION_SETTINGS, value.motion) &&
     member(AUDIO_SETTINGS, value.audio)
   );
@@ -111,7 +116,7 @@ export function createSessionStorage(
       } else {
         storage = undefined;
         notices.push(
-          'Saved session is invalid or uses an unsupported version. A new 1,000-chip in-memory session is available; the saved record is preserved until confirmed reset.',
+          `Saved session is invalid or uses an unsupported version. A new ${STARTING_BANKROLL.toLocaleString('en-US')}-chip in-memory session is available; the saved record is preserved until confirmed reset.`,
         );
       }
     }
@@ -128,13 +133,14 @@ export function createSessionStorage(
     snapshot(systemReducedMotion = false) {
       const eligible = Math.min(
         record.preferences.selectedWager,
-        Math.floor(record.settledBankroll / 10) * 10,
+        Math.floor(record.settledBankroll / WAGER_LIMITS.step) *
+          WAGER_LIMITS.step,
       );
       return {
         phase: 'BETTING' as const,
         settledBankroll: record.settledBankroll,
         preferences: { ...record.preferences },
-        dealWager: eligible >= 10 ? eligible : null,
+        dealWager: eligible >= WAGER_LIMITS.min ? eligible : null,
         reducedMotion:
           record.preferences.motion === 'system'
             ? systemReducedMotion
@@ -147,7 +153,9 @@ export function createSessionStorage(
       record = { ...record, roundPending: true };
       persist();
     },
-    commitSettled(state: Pick<GameState, 'phase' | 'balance'>): boolean {
+    commitSettled(
+      state: Extract<GameState, { phase: 'ROUND_COMPLETE' }>,
+    ): boolean {
       if (state.phase !== 'ROUND_COMPLETE' || !bankroll(state.balance))
         return false;
       record = {

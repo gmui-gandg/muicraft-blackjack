@@ -219,8 +219,9 @@ One key, `muicraft-blackjack.session`, contains this exact v1 JSON shape:
 Bankroll must be a nonnegative safe integer (including zero); selected wager must
 be 10–500 in multiples of 10. Motion is `system`, `reduced` or `full`; audio is
 only `muted`. Both types and validators derive their finite vocabularies from
-exported declarations. Unknown versions, extra/missing fields, invalid preferences
-and malformed JSON are rejected as a whole. No cards, shoe, action history, stakes,
+exported declarations. Starting funds and wager limits/validation reuse the
+game-owned declarations in `src/game/round.ts`. Unknown versions, extra/missing
+fields, invalid preferences and malformed JSON are rejected as a whole. No cards, shoe, action history, stakes,
 intermediate funds or round outcome are serialized.
 
 The public operations are:
@@ -233,11 +234,14 @@ The public operations are:
   system reduced-motion preference; `system` follows it, explicit overrides win.
 - `beginRound()` writes only `roundPending: true` against the last settled funds.
   It accepts no balance. Call it before beginning an unfinished hand.
-- `commitSettled({ phase, balance })` accepts only engine `ROUND_COMPLETE` and a
-  valid balance, returning false without mutation otherwise. The future caller
-  must supply the engine's whole-round completion, including all split hands.
+- `commitSettled(completedState)` requires the full engine `ROUND_COMPLETE`
+  union member, including round, outcome and returned funds. A phase/number pair
+  is not a valid typed input. Runtime phase and safe-balance guards return false
+  without mutation for unfinished or invalid financial inputs. The future caller
+  supplies the engine's whole-round completion, including all split hands.
   Successful commits clear the marker; repeated commits of the same balance do
-  not apply a payout again. This boundary cannot verify an invented caller phase.
+  not apply a payout again. This is a typed integration contract, not authentication
+  of caller-created game state or tamper-resistant storage.
 - `updatePreferences(preferences)` validates and copies the complete preference
   object; it never reads gameplay funds or clears the marker. Invalid updates
   return false without mutation.
@@ -252,7 +256,11 @@ last settled bankroll.” and clears the marker when writable. The boolean is
 nonfinancial and cannot resume a hand. A clean settled reload has no result or
 discard notice. Failed marker writes/clears make detection best effort; notices
 explain persistence failures. No cross-tab coordination is provided; use one
-active session per key. Simultaneous tabs can overwrite each other's records.
+active session per key. This precondition is not enforced: simultaneous adapters
+or tabs can overwrite newer settled funds or clear another session's pending
+marker, so interrupted-hand detection is not reliable with concurrent writers.
+Cross-tab ownership/locking would require a separately scoped protocol; v1 does
+not promise shared-session recovery.
 
 Empty storage starts at 1,000. Invalid/unsupported records instead provide an
 explained **new in-memory session**, preserving the original bytes until confirmed

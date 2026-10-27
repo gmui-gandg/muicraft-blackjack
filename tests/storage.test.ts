@@ -1,11 +1,49 @@
-import { describe, expect, it } from 'vitest';
-import type { GameState } from '../src/game/round.js';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import { type GameState, transition } from '../src/game/round.js';
+import { roundState } from '../src/test/round-fixtures.js';
 import {
   AUDIO_SETTINGS,
   createSessionStorage,
   MOTION_SETTINGS,
   SESSION_KEY,
 } from '../src/storage/session.js';
+
+function step(state: GameState, type: 'DEAL' | 'STAND' | 'DEALER_TURN') {
+  const result = transition(state, { type });
+  if (!result.accepted) throw new Error(result.reason);
+  return result.state;
+}
+
+function bet(state: GameState) {
+  const result = transition(state, { type: 'PLACE_BET', amount: 10 });
+  if (!result.accepted) throw new Error(result.reason);
+  return result.state;
+}
+
+function completed(balance: 0 | 990 | 1015 = 1015) {
+  const state = step(
+    bet(
+      roundState(
+        balance === 1015 ? ['A', '9', 'K', '7'] : ['10', 'A', '8', 'K'],
+        balance === 0 ? 10 : 1000,
+      ),
+    ),
+    'DEAL',
+  );
+  if (state.phase !== 'ROUND_COMPLETE') throw new Error('Expected completion');
+  expect(state.balance).toBe(balance);
+  return state;
+}
+
+function unfinished(phase: GameState['phase']) {
+  let state = bet(roundState(['10', '10', '6', '7']));
+  if (phase === 'BETTING') return state;
+  state = step(state, 'DEAL');
+  if (phase === 'PLAYER_TURN') return state;
+  state = step(state, 'STAND');
+  if (phase === 'DEALER_TURN') return state;
+  return step(state, 'DEALER_TURN');
+}
 
 function fixture() {
   const data = new Map<string, string>([['unrelated', 'keep']]);
@@ -27,6 +65,15 @@ const record = {
 };
 
 describe('settled session storage boundary', () => {
+  it('requires the full engine completion type at the settlement seam', () => {
+    const session = fixture().open();
+    expectTypeOf(session.commitSettled)
+      .parameter(0)
+      .toEqualTypeOf<Extract<GameState, { phase: 'ROUND_COMPLETE' }>>();
+    expectTypeOf<{ phase: 'ROUND_COMPLETE'; balance: number }>().not.toExtend<
+      Parameters<typeof session.commitSettled>[0]
+    >();
+  });
   it('defaults empty storage, commits 1015 and preserves wager 50 across recreation', () => {
     const f = fixture();
     const session = f.open();
@@ -35,9 +82,7 @@ describe('settled session storage boundary', () => {
       dealWager: 10,
       notices: [],
     });
-    expect(
-      session.commitSettled({ phase: 'ROUND_COMPLETE', balance: 1015 }),
-    ).toBe(true);
+    expect(session.commitSettled(completed())).toBe(true);
     session.updatePreferences({
       selectedWager: 50,
       motion: 'system',
@@ -68,7 +113,11 @@ describe('settled session storage boundary', () => {
       const session = f.open();
       session.beginRound();
       const before = f.data.get(SESSION_KEY);
-      expect(session.commitSettled({ phase, balance: 990 })).toBe(false);
+      const state = { ...unfinished(phase), balance: 990 };
+      expect(state.phase).toBe(phase);
+      // Exercise runtime rejection even when a JavaScript caller bypasses the type.
+      // @ts-expect-error Unfinished engine states are not settlement inputs.
+      expect(session.commitSettled(state)).toBe(false);
       expect(f.data.get(SESSION_KEY)).toBe(before);
       session.updatePreferences({
         selectedWager: 50,
@@ -96,7 +145,7 @@ describe('settled session storage boundary', () => {
     const f = fixture();
     const s = f.open();
     s.beginRound();
-    s.commitSettled({ phase: 'ROUND_COMPLETE', balance: 990 });
+    s.commitSettled(completed(990));
     expect(f.open().snapshot()).toMatchObject({
       settledBankroll: 990,
       notices: [],
@@ -111,7 +160,7 @@ describe('settled session storage boundary', () => {
       const s = f.open();
       s.beginRound();
       const before = f.data.get(SESSION_KEY);
-      expect(s.commitSettled({ phase: 'ROUND_COMPLETE', balance })).toBe(false);
+      expect(s.commitSettled({ ...completed(), balance })).toBe(false);
       expect(f.data.get(SESSION_KEY)).toBe(before);
       expect(s.snapshot().settledBankroll).toBe(1000);
     },
@@ -159,7 +208,7 @@ describe('settled session storage boundary', () => {
         'invalid or uses an unsupported version',
       );
       s.beginRound();
-      s.commitSettled({ phase: 'ROUND_COMPLETE', balance: 1015 });
+      s.commitSettled(completed());
       s.updatePreferences({
         selectedWager: 50,
         motion: 'full',
@@ -262,7 +311,7 @@ describe('settled session storage boundary', () => {
       expect(s.snapshot().notices.join()).toContain(
         `Storage ${operation} failed`,
       );
-      s.commitSettled({ phase: 'ROUND_COMPLETE', balance: 1015 });
+      s.commitSettled(completed());
       s.updatePreferences({
         selectedWager: 50,
         motion: 'reduced',
@@ -285,14 +334,13 @@ describe('settled session storage boundary', () => {
     (operation) => {
       const f = fixture();
       const s = f.open();
-      s.commitSettled({ phase: 'ROUND_COMPLETE', balance: 0 });
+      s.commitSettled(completed(0));
       const before = f.data.get(SESSION_KEY);
       f.storage.setItem = () => {
         throw new DOMException('QuotaExceededError');
       };
       if (operation === 'begin') s.beginRound();
-      if (operation === 'settle')
-        s.commitSettled({ phase: 'ROUND_COMPLETE', balance: 1015 });
+      if (operation === 'settle') s.commitSettled(completed());
       if (operation === 'preferences')
         s.updatePreferences({
           selectedWager: 50,
