@@ -108,86 +108,6 @@ shared dealer play and card ownership through discards. These are engine journey
 the UI still offers ordinary Deal/Hit/Stand/Next Hand only. Production persistence
 wiring and actual Split→Double/browser integration remain pending (issue #10).
 
-## M3 settled-storage boundary (issue #9)
-
-`createSessionStorage()` in `src/storage/session.ts` is a standalone localStorage
-adapter. It has no production caller yet; actual app refresh persistence, settings
-controls and lifecycle wiring belong to issue #10. No sound playback is introduced.
-
-One key, `muicraft-blackjack.session`, contains this exact v1 JSON shape:
-
-```json
-{
-  "version": 1,
-  "settledBankroll": 1000,
-  "preferences": {
-    "selectedWager": 10,
-    "motion": "system",
-    "audio": "muted"
-  },
-  "roundPending": false
-}
-```
-
-Bankroll must be a nonnegative safe integer (including zero); selected wager must
-be 10–500 in multiples of 10. Motion is `system`, `reduced` or `full`; audio is
-only `muted`. Both types and validators derive their finite vocabularies from
-exported declarations. Unknown versions, extra/missing fields, invalid preferences
-and malformed JSON are rejected as a whole. No cards, shoe, action history, stakes,
-intermediate funds or round outcome are serialized.
-
-The public operations are:
-
-- `snapshot(systemReducedMotion = false)` returns recovered `BETTING` state,
-  settled bankroll, copied preferences, notices and `available`/`memory`
-  persistence status. It does not represent live gameplay phase. `dealWager` caps
-  selection to affordable multiples of 10, returning `null` below 10 chips; the
-  selected preference remains intact. The future caller supplies the current
-  system reduced-motion preference; `system` follows it, explicit overrides win.
-- `beginRound()` writes only `roundPending: true` against the last settled funds.
-  It accepts no balance. Call it before beginning an unfinished hand.
-- `commitSettled({ phase, balance })` accepts only engine `ROUND_COMPLETE` and a
-  valid balance, returning false without mutation otherwise. The future caller
-  must supply the engine's whole-round completion, including all split hands.
-  Successful commits clear the marker; repeated commits of the same balance do
-  not apply a payout again. This boundary cannot verify an invented caller phase.
-- `updatePreferences(preferences)` validates and copies the complete preference
-  object; it never reads gameplay funds or clears the marker. Invalid updates
-  return false without mutation.
-- `reset({ confirmed: true })` explicitly resets funds to 1,000, preferences to
-  defaults and the marker to false. Missing/false confirmation returns false
-  without touching memory or storage. The future UI owns obtaining real user
-  confirmation; these tests exercise intent only. Confirmed reset retries storage
-  access and may replace this adapter's invalid/unknown record.
-
-On recreation, a true marker produces “Unfinished hand discarded. Restored the
-last settled bankroll.” and clears the marker when writable. The boolean is
-nonfinancial and cannot resume a hand. A clean settled reload has no result or
-discard notice. Failed marker writes/clears make detection best effort; notices
-explain persistence failures. No cross-tab coordination is provided; use one
-active session per key. Simultaneous tabs can overwrite each other's records.
-
-Empty storage starts at 1,000. Invalid/unsupported records instead provide an
-explained **new in-memory session**, preserving the original bytes until confirmed
-reset; ordinary operations cannot overwrite that record. This untrusted-record
-fallback is distinct from resetting a valid depleted bankroll: valid 0–9 chip
-balances remain depleted through recovery and preference changes until an explicit
-confirmed reset or a caller-supplied settled commit. Recovery never refills them.
-
-Storage access is lazy at construction, with no import-time browser access.
-`createSessionStorage(() => storage)` injects a `getItem`/`setItem` boundary for
-synthetic tests. Access/read/write exceptions (including denial and quota failure)
-produce nonfatal notices and disable persistence for that instance, retaining
-usable memory state. Operations can succeed in memory; inspect snapshot status
-and notices to determine durability. There is no automatic retry except confirmed
-reset. Notices are a session history, so earlier explanations remain after reset.
-Only this adapter's key is written; unrelated keys are untouched.
-
-`tests/storage.test.ts` exercises synthetic recreation, interruption and settlement,
-serialized allowlists, invalid data, storage failures, wager recovery, motion/audio
-and reset intent. Existing browser regression checks ordinary gameplay only;
-these tests do not claim production refresh persistence or full-MVP acceptance.
-
 ## M2 table presentation
 
 `src/components/Table.tsx` accepts supplied balance, wager, hand totals, cards,
@@ -271,9 +191,89 @@ The CommonJS Vite config avoids the bundled ESM config loader's temporary writes
 in source/dependencies. Builds intentionally generate `dist/`.
 
 Production gameplay does not yet use localStorage; there are no cookies, service
-worker, or database. The standalone adapter above is tested with synthetic
+worker, or database. The standalone adapter below is tested with synthetic
 lifecycle inputs. Runtime data/cache belongs under `FACTORY_RUNTIME_STATE`. Tests
 use fresh owned state/processes and fresh browser contexts for each attempt.
+
+## M3 settled-storage boundary (issue #9)
+
+`createSessionStorage()` in `src/storage/session.ts` is a standalone localStorage
+adapter. It has no production caller yet; actual app refresh persistence, settings
+controls and lifecycle wiring belong to issue #10. No sound playback is introduced.
+
+One key, `muicraft-blackjack.session`, contains this exact v1 JSON shape:
+
+```json
+{
+  "version": 1,
+  "settledBankroll": 1000,
+  "preferences": {
+    "selectedWager": 10,
+    "motion": "system",
+    "audio": "muted"
+  },
+  "roundPending": false
+}
+```
+
+Bankroll must be a nonnegative safe integer (including zero); selected wager must
+be 10–500 in multiples of 10. Motion is `system`, `reduced` or `full`; audio is
+only `muted`. Both types and validators derive their finite vocabularies from
+exported declarations. Unknown versions, extra/missing fields, invalid preferences
+and malformed JSON are rejected as a whole. No cards, shoe, action history, stakes,
+intermediate funds or round outcome are serialized.
+
+The public operations are:
+
+- `snapshot(systemReducedMotion = false)` returns recovered `BETTING` state,
+  settled bankroll, copied preferences, notices and `available`/`memory`
+  persistence status. It does not represent live gameplay phase. `dealWager` caps
+  selection to affordable multiples of 10, returning `null` below 10 chips; the
+  selected preference remains intact. The future caller supplies the current
+  system reduced-motion preference; `system` follows it, explicit overrides win.
+- `beginRound()` writes only `roundPending: true` against the last settled funds.
+  It accepts no balance. Call it before beginning an unfinished hand.
+- `commitSettled({ phase, balance })` accepts only engine `ROUND_COMPLETE` and a
+  valid balance, returning false without mutation otherwise. The future caller
+  must supply the engine's whole-round completion, including all split hands.
+  Successful commits clear the marker; repeated commits of the same balance do
+  not apply a payout again. This boundary cannot verify an invented caller phase.
+- `updatePreferences(preferences)` validates and copies the complete preference
+  object; it never reads gameplay funds or clears the marker. Invalid updates
+  return false without mutation.
+- `reset({ confirmed: true })` explicitly resets funds to 1,000, preferences to
+  defaults and the marker to false. Missing/false confirmation returns false
+  without touching memory or storage. The future UI owns obtaining real user
+  confirmation; these tests exercise intent only. Confirmed reset retries storage
+  access and may replace this adapter's invalid/unknown record.
+
+On recreation, a true marker produces “Unfinished hand discarded. Restored the
+last settled bankroll.” and clears the marker when writable. The boolean is
+nonfinancial and cannot resume a hand. A clean settled reload has no result or
+discard notice. Failed marker writes/clears make detection best effort; notices
+explain persistence failures. No cross-tab coordination is provided; use one
+active session per key. Simultaneous tabs can overwrite each other's records.
+
+Empty storage starts at 1,000. Invalid/unsupported records instead provide an
+explained **new in-memory session**, preserving the original bytes until confirmed
+reset; ordinary operations cannot overwrite that record. This untrusted-record
+fallback is distinct from resetting a valid depleted bankroll: valid 0–9 chip
+balances remain depleted through recovery and preference changes until an explicit
+confirmed reset or a caller-supplied settled commit. Recovery never refills them.
+
+Storage access is lazy at construction, with no import-time browser access.
+`createSessionStorage(() => storage)` injects a `getItem`/`setItem` boundary for
+synthetic tests. Access/read/write exceptions (including denial and quota failure)
+produce nonfatal notices and disable persistence for that instance, retaining
+usable memory state. Operations can succeed in memory; inspect snapshot status
+and notices to determine durability. There is no automatic retry except confirmed
+reset. Notices are a session history, so earlier explanations remain after reset.
+Only this adapter's key is written; unrelated keys are untouched.
+
+`tests/storage.test.ts` exercises synthetic recreation, interruption and settlement,
+serialized allowlists, invalid data, storage failures, wager recovery, motion/audio
+and reset intent. Existing browser regression checks ordinary gameplay only;
+these tests do not claim production refresh persistence or full-MVP acceptance.
 
 ## Checks
 
