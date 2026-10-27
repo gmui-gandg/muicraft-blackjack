@@ -1,10 +1,9 @@
 # MuiCraft Blackjack acceptance journeys
 
 Source: `docs/PRD.md` v1.0. These journeys describe target release behavior.
-Issue #10 implements and tests ordinary rounds, naturals, Double/Split and
-settled-session recovery; see README and the milestone evidence for executed
-coverage. Rules/help, full production UX, deployment and full MVP acceptance
-remain pending. Runtime verification needs a real app and candidate identity.
+See README and per-milestone evidence for implemented features and executed
+coverage. Full MVP, production UX and deployment acceptance require their
+respective checks. Runtime verification needs a real app and candidate identity.
 
 ## 1. Play and settle a round
 

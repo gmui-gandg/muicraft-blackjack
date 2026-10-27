@@ -2,6 +2,7 @@ import type { GameEvent, GameState } from '../game/round.js';
 
 export interface IntegrationEvidence {
   writes: string[];
+  attempts: GameEvent['type'][];
   transitions: {
     phase: GameState['phase'];
     balance: number;

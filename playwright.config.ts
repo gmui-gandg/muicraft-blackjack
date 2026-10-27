@@ -15,12 +15,12 @@ export default defineConfig({
     })),
     {
       name: 'gameplay-desktop',
-      testMatch: /(?:round|integration)\.spec\.ts/,
+      testMatch: /(?:round|integration|accessibility)\.spec\.ts/,
       use: { viewport: { width: 1440, height: 900 } },
     },
     {
       name: 'gameplay-touch',
-      testMatch: /(?:round|integration)\.spec\.ts/,
+      testMatch: /(?:round|integration|accessibility)\.spec\.ts/,
       use: {
         viewport: { width: 390, height: 844 },
         hasTouch: true,

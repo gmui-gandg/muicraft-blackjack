@@ -16,3 +16,8 @@
 .game[data-motion='full'] {
   --control-motion-duration: 150ms;
 }
+
+.preferences select:focus-visible {
+  outline: 3px solid #d9be7a;
+  outline-offset: 3px;
+}
