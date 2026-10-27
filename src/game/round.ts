@@ -217,11 +217,8 @@ function handOutcome(
 }
 
 function settle(state: Common, round: Round): GameState {
-  const outcomes = round.hands.map((hand) =>
-    handOutcome(hand, round.dealer, round.hands.length === 2),
-  );
-  const results = round.hands.map((hand, index) => {
-    const outcome = outcomes[index]!;
+  const results = round.hands.map((hand) => {
+    const outcome = handOutcome(hand, round.dealer, round.hands.length === 2);
     const returned =
       hand.stake *
       (
@@ -241,8 +238,10 @@ function settle(state: Common, round: Round): GameState {
     const hand = hands[index];
     if (hand) hands = updateHand(hands, index, { complete: true });
   }
-  const outcome = outcomes.every((value) => value === outcomes[0])
-    ? outcomes[0]!
+  const outcome = results.every(
+    (result) => result.outcome === results[0]!.outcome,
+  )
+    ? results[0]!.outcome
     : 'mixed';
   const completed: Extract<GameState, { phase: 'ROUND_COMPLETE' }> = {
     ...state,
