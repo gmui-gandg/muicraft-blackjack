@@ -352,7 +352,7 @@ Issue #10 adds Double/Split integration and settled persistence coverage. Full M
 acceptance remains future work; container and live deployment validation remain
 separate (AC-11/12). Future rules remain `classic-six-deck-s17-v1` as defined in PRD section 3; no alternative ruleset is implemented.
 
-## Production packaging source (not executed at M0)
+## Production packaging source and manual handoff
 
 The multi-stage Dockerfile uses `node:24.22.1-bookworm-slim` to build and
 `nginx:1.30.6-alpine` to serve static output on internal port **80**. Production
@@ -380,7 +380,9 @@ Missing identity or assets return 404 instead of the HTML shell.
 **M0 validates packaging source/configuration and real Vite build output only.**
 Docker installation, image build/run/publish, Nginx syntax/runtime validation,
 Coolify deployment, and network exposure are unrun and require separate scope.
-This is not a deployment runbook or container acceptance claim.
+Issue #13 adds the [manual build, probe, Coolify and rollback handoff](docs/DEPLOYMENT.md)
+and candidate-specific clean-checkout evidence referenced in the PR. Container and
+LAN execution remain deferred; this is not an AC-11/12 completion claim.
 
 ## Project guidance
 

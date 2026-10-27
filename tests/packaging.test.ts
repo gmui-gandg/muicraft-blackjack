@@ -1,5 +1,13 @@
 import { execFile, execFileSync } from 'node:child_process';
-import { cp, mkdtemp, readFile, rm, stat, symlink } from 'node:fs/promises';
+import {
+  cp,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  symlink,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { join, matchesGlob } from 'node:path';
@@ -178,12 +186,26 @@ test('production configuration wires the built artifact and excludes private con
     .trim()
     .split('\n');
   expect(ignore[0]).toBe('**');
-  expect(ignore.slice(1).every((line) => line.startsWith('!'))).toBe(true);
-  const allowed = ignore
-    .slice(1)
-    .map((line) => line.slice(1).replace(/\/$/, ''));
-  const included = (file: string) =>
-    allowed.some((pattern) => matchesGlob(file, pattern));
+  const included = (file: string) => {
+    const parts = file.split('/');
+    const ancestors = parts.map((_, index) =>
+      parts.slice(0, index + 1).join('/'),
+    );
+    let admitted = false;
+    for (const rule of ignore) {
+      const negated = rule.startsWith('!');
+      const pattern = (negated ? rule.slice(1) : rule).replace(/\/$/, '');
+      if (ancestors.some((path) => matchesGlob(path, pattern)))
+        admitted = negated;
+    }
+    return admitted;
+  };
+  // This models the ordered glob subset used here, not Docker runtime behavior.
+  const actualSource = await readdir(join(projectRoot, 'src'), {
+    recursive: true,
+  });
+  for (const file of actualSource)
+    expect(included(`src/${file}`), file).toBe(true);
   for (const file of [
     ...sourceFiles,
     'src/app/App.tsx',
@@ -194,6 +216,7 @@ test('production configuration wires the built artifact and excludes private con
   for (const file of [
     '.git/config',
     '.env',
+    '.env.local',
     'credentials.json',
     'private/scenario.json',
     '.archon/config.yaml',
@@ -207,4 +230,27 @@ test('production configuration wires the built artifact and excludes private con
     'test-results/result.json',
   ])
     expect(included(file), file).toBe(false);
+  for (const prefix of ['', 'src/', 'src/app/nested/']) {
+    for (const file of [
+      '.env',
+      '.env.production.local',
+      '.npmrc',
+      '.git/config',
+      '.ssh/id_ed25519',
+      '.archon/config.yaml',
+      '.factory/runtime.json',
+      '.claude/settings.json',
+      'credentials.json',
+      'credentials/token.json',
+      'secrets.json',
+      'secrets/token',
+      'private/config.json',
+      'runtime/state.json',
+      'server.pem',
+      'server.key',
+      'node_modules/react/index.js',
+      'dist/index.html',
+    ])
+      expect(included(`${prefix}${file}`), `${prefix}${file}`).toBe(false);
+  }
 });
