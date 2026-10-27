@@ -41,14 +41,16 @@ const shortcuts = [
   { key: 'p', label: 'Split', type: 'SPLIT' },
 ] as const;
 
-function primary(state: GameState): GameEvent | undefined {
+function primary(
+  state: GameState,
+): { event: GameEvent; label: string } | undefined {
   switch (state.phase) {
     case 'BETTING':
-      return { type: 'DEAL' };
+      return { event: { type: 'DEAL' }, label: 'Deal' };
     case 'PLAYER_TURN':
-      return { type: 'HIT' };
+      return { event: { type: 'HIT' }, label: 'Hit' };
     case 'ROUND_COMPLETE':
-      return { type: 'NEXT_HAND' };
+      return { event: { type: 'NEXT_HAND' }, label: 'Next Hand' };
   }
 }
 
@@ -102,7 +104,7 @@ export function PlayableRound({ session }: { session: PlaySession }) {
         return;
       const action = command
         ? { type: command.type }
-        : primary(session.getSnapshot().result.state);
+        : primary(session.getSnapshot().result.state)?.event;
       if (action) {
         event.preventDefault();
         dispatchLegal(session, action);
@@ -269,15 +271,7 @@ export function PlayableRound({ session }: { session: PlaySession }) {
         </label>
       </div>
       <p>
-        Primary action:{' '}
-        {state.phase === 'BETTING'
-          ? 'Deal'
-          : state.phase === 'PLAYER_TURN'
-            ? 'Hit'
-            : state.phase === 'ROUND_COMPLETE'
-              ? 'Next Hand'
-              : 'none'}{' '}
-        (Enter on the page)
+        Primary action: {primary(state)?.label ?? 'none'} (Enter on the page)
       </p>
       {!result.accepted && <p role="alert">{reasons[result.reason]}</p>}
       <Table

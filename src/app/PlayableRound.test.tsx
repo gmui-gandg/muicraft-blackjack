@@ -67,18 +67,30 @@ test('primary Enter uses fresh state, release required across Deal, Hit and Next
     ...roundState(['2', '10', '3', '7', '2', '2']),
     wager: 10,
   });
+  expect(
+    screen.getByText('Primary action: Deal (Enter on the page)'),
+  ).toBeVisible();
   down('Enter');
   down('Enter');
   down('Enter', { repeat: true });
   expect(dispatch).toHaveBeenCalledExactlyOnceWith({ type: 'DEAL' });
+  expect(
+    screen.getByText('Primary action: Hit (Enter on the page)'),
+  ).toBeVisible();
   up('Enter');
   press('Enter');
   expect(dispatch).toHaveBeenLastCalledWith({ type: 'HIT' });
   press('s');
   expect(session.getSnapshot().result.state.phase).toBe('ROUND_COMPLETE');
+  expect(
+    screen.getByText('Primary action: Next Hand (Enter on the page)'),
+  ).toBeVisible();
   press('Enter');
   expect(dispatch).toHaveBeenLastCalledWith({ type: 'NEXT_HAND' });
   expect(session.getSnapshot().result.state.phase).toBe('BETTING');
+  expect(
+    screen.getByText('Primary action: Deal (Enter on the page)'),
+  ).toBeVisible();
   dispatch.mockClear();
   press('Enter');
   expect(dispatch).not.toHaveBeenCalled();
