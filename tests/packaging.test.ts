@@ -1,5 +1,14 @@
 import { execFile, execFileSync } from 'node:child_process';
-import { cp, mkdtemp, readFile, rm, stat, symlink } from 'node:fs/promises';
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  symlink,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { join, matchesGlob } from 'node:path';
@@ -64,6 +73,77 @@ test('build emits current Git identity and executable assets', async () => {
     await rm(state, { recursive: true, force: true });
   }
 });
+
+test.each([false, true])(
+  'documented probe binds loopback and cleans up when CID recording fails=%s',
+  async (failRecording) => {
+    const guide = await readFile(
+      join(projectRoot, 'docs/DEPLOYMENT.md'),
+      'utf8',
+    );
+    const start = guide.match(
+      /```bash\n(probe_port=18080\n[\s\S]*?)base_url=/,
+    )?.[1];
+    if (!start) throw new Error('Missing documented container startup');
+    const attempt = await mkdtemp(join(tmpdir(), 'muicraft-probe-'));
+    try {
+      if (failRecording) await mkdir(join(attempt, 'container-id'));
+      const result = execute(
+        'bash',
+        [
+          '-c',
+          `set -euo pipefail
+docker() {
+  printf '%s\\n' "$@" >> "$attempt/calls"
+  case "$1" in
+    run) printf 'owned-cid\\n' ;;
+    inspect) printf 'false\\n' ;;
+  esac
+}
+${start}
+exit 0`,
+        ],
+        {
+          env: { ...process.env, attempt, image_id: 'sha256:probe-image' },
+          timeout: 5_000,
+        },
+      );
+      if (failRecording)
+        await expect(result).rejects.toMatchObject({ code: 1 });
+      else await result;
+      expect(await readFile(join(attempt, 'calls'), 'utf8')).toBe(
+        [
+          'run',
+          '--detach',
+          '--pull=never',
+          '--publish',
+          '127.0.0.1:18080:80',
+          'sha256:probe-image',
+          'logs',
+          'owned-cid',
+          'stop',
+          '--time',
+          '10',
+          'owned-cid',
+          'inspect',
+          '--format',
+          '{{.State.Running}}',
+          'owned-cid',
+          '',
+        ].join('\n'),
+      );
+      expect(
+        await readFile(join(attempt, 'container-running.txt'), 'utf8'),
+      ).toBe('false\n');
+      if (!failRecording)
+        expect(await readFile(join(attempt, 'container-id'), 'utf8')).toBe(
+          'owned-cid\n',
+        );
+    } finally {
+      await rm(attempt, { recursive: true, force: true });
+    }
+  },
+);
 
 test('Git-free builds use exact injected identity without stale output and fail without identity', async () => {
   const root = await mkdtemp(join(tmpdir(), 'muicraft-git-free-'));
@@ -178,12 +258,26 @@ test('production configuration wires the built artifact and excludes private con
     .trim()
     .split('\n');
   expect(ignore[0]).toBe('**');
-  expect(ignore.slice(1).every((line) => line.startsWith('!'))).toBe(true);
-  const allowed = ignore
-    .slice(1)
-    .map((line) => line.slice(1).replace(/\/$/, ''));
-  const included = (file: string) =>
-    allowed.some((pattern) => matchesGlob(file, pattern));
+  const included = (file: string) => {
+    const parts = file.split('/');
+    const ancestors = parts.map((_, index) =>
+      parts.slice(0, index + 1).join('/'),
+    );
+    let admitted = false;
+    for (const rule of ignore) {
+      const negated = rule.startsWith('!');
+      const pattern = (negated ? rule.slice(1) : rule).replace(/\/$/, '');
+      if (ancestors.some((path) => matchesGlob(path, pattern)))
+        admitted = negated;
+    }
+    return admitted;
+  };
+  // This models the ordered glob subset used here, not Docker runtime behavior.
+  const actualSource = await readdir(join(projectRoot, 'src'), {
+    recursive: true,
+  });
+  for (const file of actualSource)
+    expect(included(`src/${file}`), file).toBe(true);
   for (const file of [
     ...sourceFiles,
     'src/app/App.tsx',
@@ -194,6 +288,7 @@ test('production configuration wires the built artifact and excludes private con
   for (const file of [
     '.git/config',
     '.env',
+    '.env.local',
     'credentials.json',
     'private/scenario.json',
     '.archon/config.yaml',
@@ -207,4 +302,27 @@ test('production configuration wires the built artifact and excludes private con
     'test-results/result.json',
   ])
     expect(included(file), file).toBe(false);
+  for (const prefix of ['', 'src/', 'src/app/nested/']) {
+    for (const file of [
+      '.env',
+      '.env.production.local',
+      '.npmrc',
+      '.git/config',
+      '.ssh/id_ed25519',
+      '.archon/config.yaml',
+      '.factory/runtime.json',
+      '.claude/settings.json',
+      'credentials.json',
+      'credentials/token.json',
+      'secrets.json',
+      'secrets/token',
+      'private/config.json',
+      'runtime/state.json',
+      'server.pem',
+      'server.key',
+      'node_modules/react/index.js',
+      'dist/index.html',
+    ])
+      expect(included(`${prefix}${file}`), `${prefix}${file}`).toBe(false);
+  }
 });
