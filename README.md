@@ -120,6 +120,7 @@ buttons, accessible rejection descriptions and visible keyboard focus.
 The main app mounts `PlayableRound`, which uses engine eligibility for each additive
 10/50/100 chip and action. `dispatchRound` is the shared typed event boundary;
 it advances dealer play and settlement immediately through engine transitions.
+Rejected dispatched actions show an alert while retaining the last committed game state.
 Presentation receives totals and settlement values; it never decides payouts.
 Action positions stay stable so rapid repeated clicks cannot turn Deal into Hit
 or Stand into Next Hand. Below 10 chips, Reset Virtual Bankroll uses the browser's
