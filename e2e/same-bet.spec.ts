@@ -167,7 +167,7 @@ test('50 original survives split and two doubles without mid-round forced-off or
   await expect(toggle(page)).toBeDisabled();
   await expect(toggle(page)).toBeChecked();
   await expect(toggle(page)).toHaveAccessibleDescription(
-    'Repeat amount: 50. Same bet can be changed after the round completes.',
+    'Repeat amount: 50. Available after the round completes.',
   );
   for (const status of await page.getByRole('status').all())
     await expect(status).toBeEmpty();

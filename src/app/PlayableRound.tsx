@@ -271,24 +271,24 @@ export function PlayableRound({ session }: { session: PlaySession }) {
               ))}
           </select>
         </label>
-      </div>
-      <div className={styles.repeat}>
-        <label>
-          <input
-            type="checkbox"
-            checked={saved.preferences.sameBet}
-            disabled={!repeat.enabled}
-            aria-describedby={repeatReasonId}
-            onChange={(event) => session.setSameBet(event.target.checked)}
-          />
-          Same bet on Next Hand
-        </label>
-        <p id={repeatReasonId} aria-live="polite">
-          {saved.lastCompletedWager !== null && (
-            <>Repeat amount: {saved.lastCompletedWager}. </>
-          )}
-          {!repeat.enabled && repeat.reason}
-        </p>
+        <div className={styles.repeat}>
+          <label>
+            <input
+              type="checkbox"
+              checked={saved.preferences.sameBet}
+              disabled={!repeat.enabled}
+              aria-describedby={repeatReasonId}
+              onChange={(event) => session.setSameBet(event.target.checked)}
+            />
+            Same bet on Next Hand
+          </label>
+          <p id={repeatReasonId} aria-live="polite">
+            {saved.lastCompletedWager !== null && (
+              <>Repeat amount: {saved.lastCompletedWager}. </>
+            )}
+            {!repeat.enabled && repeat.reason}
+          </p>
+        </div>
       </div>
       <p>
         Primary action: {primary(state)?.label ?? 'none'} (Enter on the page)

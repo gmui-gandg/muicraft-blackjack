@@ -26,6 +26,9 @@
   outline-offset: 3px;
 }
 
+.repeat {
+  max-width: 24rem;
+}
 .repeat label {
   display: inline-flex;
   align-items: center;
@@ -43,5 +46,5 @@
   outline-offset: 3px;
 }
 .repeat p {
-  margin-block: 0 1rem;
+  margin: 0;
 }

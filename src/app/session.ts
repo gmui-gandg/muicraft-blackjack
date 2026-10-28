@@ -48,7 +48,7 @@ export function createPlaySession(
     )
       return {
         enabled: false,
-        reason: 'Same bet can be changed after the round completes.',
+        reason: 'Available after the round completes.',
       } as const;
     if (saved.lastCompletedWager === null)
       return {
