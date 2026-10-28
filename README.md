@@ -134,7 +134,8 @@ and ignores repeated settlement commands without another financial write.
 Preferences never commit an in-round balance. Reload restores settled chips and
 the selected wager (capped to affordable multiples of 10); unfinished ordinary or
 split rounds are discarded with an explanation. Next Hand remains explicit and
-clears the current wager; the saved selection survives reload.
+selects the affordable completed-round wager only when Same bet is checked;
+otherwise it selects 0. The selected wager survives reload.
 
 The Selected wager control permits lowering a wager as well as choosing legal
 amounts. Motion defaults to system reduced-motion preference, with reduced/full
