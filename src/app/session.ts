@@ -104,17 +104,13 @@ export function createPlaySession(
       }
       if (result.accepted && event.type === 'PLACE_BET') {
         storage.updatePreferences({
-          ...storage.snapshot().preferences,
           selectedWager: result.state.wager,
         });
       }
       publish(result);
     },
     setMotion(motion: Preferences['motion']) {
-      if (
-        storage.updatePreferences({ ...storage.snapshot().preferences, motion })
-      )
-        publish(snapshot.result);
+      if (storage.updatePreferences({ motion })) publish(snapshot.result);
     },
     reset(confirmed: boolean) {
       const state = snapshot.result.state;
