@@ -134,7 +134,8 @@ and ignores repeated settlement commands without another financial write.
 Preferences never commit an in-round balance. Reload restores settled chips and
 the selected wager (capped to affordable multiples of 10); unfinished ordinary or
 split rounds are discarded with an explanation. Next Hand remains explicit and
-clears the current wager; the saved selection survives reload.
+selects the affordable completed-round wager only when Same bet is checked;
+otherwise it selects 0. The selected wager survives reload.
 
 The Selected wager control permits lowering a wager as well as choosing legal
 amounts. Motion defaults to system reduced-motion preference, with reduced/full
@@ -221,14 +222,16 @@ use fresh owned state/processes and fresh browser contexts for each attempt.
 `createSessionStorage()` in `src/storage/session.ts` is a standalone localStorage
 adapter used by the production session controller. No sound playback is introduced.
 
-One key, `muicraft-blackjack.session`, contains this exact v1 JSON shape:
+One key, `muicraft-blackjack.session`, contains this exact v2 JSON shape:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
+  "lastCompletedWager": null,
   "settledBankroll": 1000,
   "preferences": {
     "selectedWager": 10,
+    "sameBet": false,
     "motion": "system",
     "audio": "muted"
   },
@@ -237,12 +240,33 @@ One key, `muicraft-blackjack.session`, contains this exact v1 JSON shape:
 ```
 
 Bankroll must be a nonnegative safe integer (including zero); selected wager must
-be 10–500 in multiples of 10. Motion is `system`, `reduced` or `full`; audio is
+be 0 (explicitly cleared) or 10–500 in multiples of 10. Zero is never a legal
+engine PLACE_BET or Deal wager. Motion is `system`, `reduced` or `full`; audio is
 only `muted`. Both types and validators derive their finite vocabularies from
 exported declarations. Starting funds and wager limits/validation reuse the
 game-owned declarations in `src/game/round.ts`. Unknown versions, extra/missing
-fields, invalid preferences and malformed JSON are rejected as a whole. No cards, shoe, action history, stakes,
+core fields, invalid existing preferences and malformed JSON are rejected as a whole. No cards, shoe, action history, stakes,
 intermediate funds or round outcome are serialized.
+
+Valid v1 records migrate in memory with settled funds, motion/audio and manual
+selection preserved, Same bet off and completed reference unknown. The next write
+uses v2. `lastCompletedWager` is null or a legal 10–500 multiple of 10; missing or
+invalid new repeat metadata is sanitized independently, preserving valid funds and
+other preferences. Checked opt-in restores only with a valid affordable reference.
+Explicit selected zero reloads as zero; ordinary manual selection reload continues
+to use the existing affordable projection described below.
+
+Same bet on Next Hand starts unchecked and unavailable until an affordable completed
+round exists. The visible reason and repeat amount accompany its native checkbox.
+Space toggles it; focused inputs keep native keyboard behavior. During play it is
+disabled without clearing its checked state. Only whole-round settlement evaluates
+affordability (equality counts), using the accepted engine opening wager before any
+Double/Split. Insufficiency immediately turns it off and clears the pending next
+selection; a later affordable completed round enables it without checking it.
+Accepted Next Hand selects that exact reference when checked/affordable, otherwise
+zero. It never deals, deducts funds, clamps a repeat, or refills funds. Manual wager
+changes remain independent until the next accepted Deal completes. Confirmed reset
+also clears opt-in/reference; cancellation changes nothing.
 
 The public operations are:
 
@@ -262,11 +286,12 @@ The public operations are:
   deserialized, balance-altered, unfinished or financially invalid inputs return
   false without changing funds or the pending marker. Pass the original completion
   directly, without spreading or serializing it. Successful commits clear the
-  marker; repeating the same completion does not apply a payout again. Proof is
+  marker and save its original `wager` as the completed-round reference; insufficient
+  settled funds also clear the pending selection and turn Same bet off atomically.
+  Repeating the same completion does not apply a payout again. Proof is
   process-local and never stored. Browser storage remains user-modifiable; this
   integration guard does not make local scores tamper-resistant.
-- `updatePreferences(preferences)` validates and copies the complete preference
-  object; it never reads gameplay funds or clears the marker. Invalid updates
+- `updatePreferences(changes)` merges, validates and copies preference changes; it never reads gameplay funds or clears the marker. Invalid updates
   return false without mutation.
 - `reset({ confirmed: true })` explicitly resets funds to 1,000, preferences to
   defaults and the marker to false. Missing/false confirmation returns false
@@ -284,7 +309,7 @@ explain persistence failures. No cross-tab coordination is provided; use one
 active session per key. This precondition is not enforced: simultaneous adapters
 or tabs can overwrite newer settled funds or clear another session's pending
 marker, so interrupted-hand detection is not reliable with concurrent writers.
-Cross-tab ownership/locking would require a separately scoped protocol; v1 does
+Cross-tab ownership/locking would require a separately scoped protocol; v2 does
 not promise shared-session recovery.
 
 Empty storage starts at 1,000. Invalid/unsupported records instead provide an

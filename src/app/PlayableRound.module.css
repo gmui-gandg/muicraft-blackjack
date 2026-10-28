@@ -25,3 +25,26 @@
   outline: 3px solid #d9be7a;
   outline-offset: 3px;
 }
+
+.repeat {
+  max-width: 24rem;
+}
+.repeat label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+.repeat input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.repeat input:focus-visible {
+  outline: 3px solid #d9be7a;
+  outline-offset: 3px;
+}
+.repeat p {
+  margin: 0;
+}

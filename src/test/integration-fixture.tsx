@@ -12,6 +12,7 @@ import '../styles/global.css';
 
 const cases: Record<string, readonly Rank[]> = {
   ordinary: ['10', '10', '8', '7'],
+  loss: ['10', 'A', '8', 'K'],
   keyboard: ['2', '10', '3', '7', '2', '2', '2'],
   split: ['Q', 'A', 'Q', '6', '2', '3', '8', '7'],
   aces: ['A', '10', 'A', '7', 'K', '9'],

@@ -40,7 +40,37 @@ export function createPlaySession(
     snapshot = { result, saved };
     listeners.forEach((listener) => listener());
   }
+  function repeatAvailability() {
+    const { saved, result } = snapshot;
+    if (
+      result.state.phase !== 'BETTING' &&
+      result.state.phase !== 'ROUND_COMPLETE'
+    )
+      return {
+        enabled: false,
+        reason: 'Available after the round completes.',
+      } as const;
+    if (saved.lastCompletedWager === null)
+      return {
+        enabled: false,
+        reason: 'Complete a round to choose Same bet.',
+      } as const;
+    if (saved.settledBankroll < saved.lastCompletedWager)
+      return {
+        enabled: false,
+        reason: `Not enough chips to repeat ${saved.lastCompletedWager}; choose a wager manually.`,
+      } as const;
+    return { enabled: true } as const;
+  }
   return {
+    repeatAvailability,
+    setSameBet(checked: boolean) {
+      if (
+        repeatAvailability().enabled &&
+        storage.updatePreferences({ sameBet: checked })
+      )
+        publish(snapshot.result);
+    },
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {
       listeners.add(listener);
@@ -52,25 +82,35 @@ export function createPlaySession(
       const state = snapshot.result.state;
       if (event.type === 'DEAL' && eligibility(state, event).allowed)
         storage.beginRound();
-      const result = dispatch(state, event);
+      let result = dispatch(state, event);
       if (result.state !== state && result.state.phase === 'ROUND_COMPLETE') {
         settlementNotice = storage.commitSettled(result.state)
           ? undefined
           : 'Settlement could not be saved. Reload will restore the last saved bankroll.';
       }
+      if (result.accepted && event.type === 'NEXT_HAND') {
+        const saved = storage.snapshot();
+        const amount =
+          saved.preferences.sameBet &&
+          saved.lastCompletedWager !== null &&
+          saved.settledBankroll >= saved.lastCompletedWager
+            ? saved.lastCompletedWager
+            : 0;
+        result = { ...result, state: { ...result.state, wager: amount } };
+        storage.updatePreferences({
+          selectedWager: amount,
+          sameBet: amount > 0,
+        });
+      }
       if (result.accepted && event.type === 'PLACE_BET') {
         storage.updatePreferences({
-          ...storage.snapshot().preferences,
           selectedWager: result.state.wager,
         });
       }
       publish(result);
     },
     setMotion(motion: Preferences['motion']) {
-      if (
-        storage.updatePreferences({ ...storage.snapshot().preferences, motion })
-      )
-        publish(snapshot.result);
+      if (storage.updatePreferences({ motion })) publish(snapshot.result);
     },
     reset(confirmed: boolean) {
       const state = snapshot.result.state;

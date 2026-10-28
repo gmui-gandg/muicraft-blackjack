@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useId, useRef, useSyncExternalStore } from 'react';
 import { HelpDialog } from '../components/HelpDialog';
 import type { HandView } from '../components/Table';
 import type { PlaySession } from './session';
@@ -64,6 +64,8 @@ export function PlayableRound({ session }: { session: PlaySession }) {
     session.subscribe,
     session.getSnapshot,
   );
+  const repeatReasonId = useId();
+  const repeat = session.repeatAvailability();
   const modalOpen = useRef(false);
   const confirming = useRef(false);
   useEffect(() => {
@@ -269,6 +271,24 @@ export function PlayableRound({ session }: { session: PlaySession }) {
               ))}
           </select>
         </label>
+        <div className={styles.repeat}>
+          <label>
+            <input
+              type="checkbox"
+              checked={saved.preferences.sameBet}
+              disabled={!repeat.enabled}
+              aria-describedby={repeatReasonId}
+              onChange={(event) => session.setSameBet(event.target.checked)}
+            />
+            Same bet on Next Hand
+          </label>
+          <p id={repeatReasonId} aria-live="polite">
+            {saved.lastCompletedWager !== null && (
+              <>Repeat amount: {saved.lastCompletedWager}. </>
+            )}
+            {!repeat.enabled && repeat.reason}
+          </p>
+        </div>
       </div>
       <p>
         Primary action: {primary(state)?.label ?? 'none'} (Enter on the page)

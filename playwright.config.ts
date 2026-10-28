@@ -10,7 +10,7 @@ export default defineConfig({
   projects: [
     ...[320, 375, 390, 768, 1440].map((width) => ({
       name: `motion-${width}`,
-      testMatch: 'motion.spec.ts',
+      testMatch: /(?:motion|same-bet)\.spec\.ts/,
       use: {
         viewport: { width, height: 900 },
         hasTouch: width < 700,
