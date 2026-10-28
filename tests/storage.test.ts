@@ -69,6 +69,13 @@ const record = {
   roundPending: false,
 };
 
+const currentRecord = {
+  ...record,
+  version: 2,
+  lastCompletedWager: null,
+  preferences: { ...record.preferences, sameBet: false },
+};
+
 describe('settled session storage boundary', () => {
   it('requires the full engine completion type at the settlement seam', () => {
     const session = fixture().open();
@@ -213,9 +220,10 @@ describe('settled session storage boundary', () => {
       notices: [],
     });
     expect(f.saved()).toEqual({
-      ...record,
+      ...currentRecord,
       settledBankroll: 1015,
-      preferences: { ...record.preferences, selectedWager: 50 },
+      lastCompletedWager: 10,
+      preferences: { ...currentRecord.preferences, selectedWager: 50 },
     });
     expect(f.data.get('unrelated')).toBe('keep');
   });
@@ -244,9 +252,9 @@ describe('settled session storage boundary', () => {
         audio: 'muted',
       });
       expect(f.saved()).toEqual({
-        ...record,
+        ...currentRecord,
         roundPending: true,
-        preferences: { ...record.preferences, selectedWager: 50 },
+        preferences: { ...currentRecord.preferences, selectedWager: 50 },
       });
       const recovered = f.open().snapshot();
       expect(recovered).toMatchObject({
@@ -269,7 +277,11 @@ describe('settled session storage boundary', () => {
       settledBankroll: 990,
       notices: [],
     });
-    expect(f.saved()).toEqual({ ...record, settledBankroll: 990 });
+    expect(f.saved()).toEqual({
+      ...currentRecord,
+      lastCompletedWager: 10,
+      settledBankroll: 990,
+    });
   });
 
   it('rejects an engine-issued completion outside the safe financial domain', () => {
@@ -307,7 +319,7 @@ describe('settled session storage boundary', () => {
     '[]',
     '1',
     '{}',
-    JSON.stringify({ ...record, version: 2 }),
+    JSON.stringify({ ...record, version: 99 }),
     JSON.stringify({ ...record, roundPending: 'yes' }),
     JSON.stringify({ ...record, cards: [] }),
     ...[-1, 1.5, null, '1000', Number.MAX_SAFE_INTEGER + 1].map(
@@ -354,7 +366,7 @@ describe('settled session storage boundary', () => {
       expect(s.reset({ confirmed: false })).toBe(false);
       expect(f.data.get(SESSION_KEY)).toBe(raw);
       expect(s.reset({ confirmed: true })).toBe(true);
-      expect(f.saved()).toEqual(record);
+      expect(f.saved()).toEqual(currentRecord);
       expect(f.data.get('unrelated')).toBe('keep');
     },
   );
@@ -407,6 +419,7 @@ describe('settled session storage boundary', () => {
         );
         expect(s.snapshot(system).preferences).toEqual({
           selectedWager: 50,
+          sameBet: false,
           motion,
           audio: 'muted',
         });
@@ -489,7 +502,7 @@ describe('settled session storage boundary', () => {
         operation === 'reset' ? 1000 : operation === 'settle' ? 1015 : 0,
       );
       expect(s.snapshot().preferences.selectedWager).toBe(
-        operation === 'preferences' ? 50 : 10,
+        operation === 'preferences' ? 50 : operation === 'reset' ? 10 : 0,
       );
       expect(f.data.get(SESSION_KEY)).toBe(before);
     },
@@ -520,3 +533,139 @@ describe('settled session storage boundary', () => {
     });
   });
 });
+
+it('migrates v1 selection without inferring completed-round reference and writes only the v2 allowlist', () => {
+  const f = fixture();
+  f.data.set(
+    SESSION_KEY,
+    JSON.stringify({
+      ...record,
+      settledBankroll: 765,
+      preferences: { selectedWager: 100, motion: 'reduced', audio: 'muted' },
+    }),
+  );
+  const s = f.open();
+  expect(s.snapshot()).toMatchObject({
+    settledBankroll: 765,
+    dealWager: 100,
+    lastCompletedWager: null,
+    preferences: {
+      selectedWager: 100,
+      sameBet: false,
+      motion: 'reduced',
+      audio: 'muted',
+    },
+  });
+  s.updatePreferences({ motion: 'full' });
+  expect(f.saved()).toEqual({
+    version: 2,
+    settledBankroll: 765,
+    roundPending: false,
+    lastCompletedWager: null,
+    preferences: {
+      selectedWager: 100,
+      sameBet: false,
+      motion: 'full',
+      audio: 'muted',
+    },
+  });
+});
+
+it.each([undefined, null, 0, 15, 510, -10, '50', { cards: [] }])(
+  'bad repeat reference %j preserves valid funds and other preferences',
+  (reference) => {
+    const f = fixture();
+    f.data.set(
+      SESSION_KEY,
+      JSON.stringify({
+        ...currentRecord,
+        settledBankroll: 765,
+        lastCompletedWager: reference,
+        preferences: {
+          selectedWager: 100,
+          motion: 'reduced',
+          audio: 'muted',
+          sameBet: true,
+        },
+      }),
+    );
+    const s = f.open();
+    expect(s.snapshot()).toMatchObject({
+      settledBankroll: 765,
+      dealWager: 100,
+      lastCompletedWager: null,
+      persistence: 'available',
+      preferences: {
+        selectedWager: 100,
+        sameBet: false,
+        motion: 'reduced',
+        audio: 'muted',
+      },
+    });
+    s.beginRound();
+    expect(f.saved()).toEqual({
+      version: 2,
+      settledBankroll: 765,
+      lastCompletedWager: null,
+      roundPending: true,
+      preferences: {
+        selectedWager: 100,
+        sameBet: false,
+        motion: 'reduced',
+        audio: 'muted',
+      },
+    });
+  },
+);
+
+it.each([undefined, null, 'true', 1, {}])(
+  'bad opt-in %j leaves valid completed reference and manual selection',
+  (sameBet) => {
+    const f = fixture();
+    f.data.set(
+      SESSION_KEY,
+      JSON.stringify({
+        ...currentRecord,
+        settledBankroll: 100,
+        lastCompletedWager: 50,
+        preferences: {
+          ...currentRecord.preferences,
+          selectedWager: 100,
+          sameBet,
+        },
+      }),
+    );
+    expect(f.open().snapshot()).toMatchObject({
+      settledBankroll: 100,
+      lastCompletedWager: 50,
+      dealWager: 100,
+      preferences: { sameBet: false },
+    });
+  },
+);
+
+it.each([49, 50])(
+  'restores opt-in only when whole completed reference is affordable at %s',
+  (balance) => {
+    const f = fixture();
+    f.data.set(
+      SESSION_KEY,
+      JSON.stringify({
+        ...currentRecord,
+        settledBankroll: balance,
+        lastCompletedWager: 50,
+        preferences: {
+          ...currentRecord.preferences,
+          selectedWager: 0,
+          sameBet: true,
+        },
+      }),
+    );
+    expect(f.open().snapshot()).toMatchObject({
+      settledBankroll: balance,
+      lastCompletedWager: 50,
+      dealWager: null,
+      preferences: { sameBet: balance >= 50, selectedWager: 0 },
+    });
+  },
+);

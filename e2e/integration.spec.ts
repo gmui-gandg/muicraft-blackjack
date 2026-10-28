@@ -22,9 +22,15 @@ async function seed(page: Page, appURL: string, bankroll: number) {
       localStorage.setItem(
         key,
         JSON.stringify({
-          version: 1,
+          version: 2,
+          lastCompletedWager: null,
           settledBankroll: bankroll,
-          preferences: { selectedWager: 10, motion: 'system', audio: 'muted' },
+          preferences: {
+            selectedWager: 10,
+            motion: 'system',
+            audio: 'muted',
+            sameBet: false,
+          },
           roundPending: false,
         }),
       ),
@@ -41,9 +47,15 @@ async function recovered(page: Page, appURL: string, bankroll = 1000) {
   ).toBeVisible();
   await expect(page.getByRole('img')).toHaveCount(0);
   expect(await saved(page)).toEqual({
-    version: 1,
+    version: 2,
+    lastCompletedWager: null,
     settledBankroll: bankroll,
-    preferences: { selectedWager: 10, motion: 'system', audio: 'muted' },
+    preferences: {
+      selectedWager: 10,
+      motion: 'system',
+      audio: 'muted',
+      sameBet: false,
+    },
     roundPending: false,
   });
   await page.reload();
@@ -80,9 +92,15 @@ test('Q+Q split double both hands commits 40 once, shared S17, settled reload', 
   for (const result of await page.getByRole('status').all())
     await expect(result).toBeEmpty();
   expect(await saved(page)).toEqual({
-    version: 1,
+    version: 2,
+    lastCompletedWager: null,
     settledBankroll: 1000,
-    preferences: { selectedWager: 10, motion: 'system', audio: 'muted' },
+    preferences: {
+      selectedWager: 10,
+      motion: 'system',
+      audio: 'muted',
+      sameBet: false,
+    },
     roundPending: true,
   });
   await activate(page, 'Double', hasTouch);
@@ -107,15 +125,27 @@ test('Q+Q split double both hands commits 40 once, shared S17, settled reload', 
   expect(end.dealer).toBe(2);
   expect(evidence.writes.map((raw) => JSON.parse(raw))).toEqual([
     {
-      version: 1,
+      version: 2,
+      lastCompletedWager: null,
       settledBankroll: 1000,
-      preferences: { selectedWager: 10, motion: 'system', audio: 'muted' },
+      preferences: {
+        selectedWager: 10,
+        motion: 'system',
+        audio: 'muted',
+        sameBet: false,
+      },
       roundPending: true,
     },
     {
-      version: 1,
+      version: 2,
+      lastCompletedWager: 10,
       settledBankroll: 1040,
-      preferences: { selectedWager: 10, motion: 'system', audio: 'muted' },
+      preferences: {
+        selectedWager: 10,
+        motion: 'system',
+        audio: 'muted',
+        sameBet: false,
+      },
       roundPending: false,
     },
   ]);
@@ -162,9 +192,15 @@ test('ordinary settled reload preserves wager and motion; system default follows
   await activate(page, 'Stand', hasTouch);
   await expect(balance(page)).toHaveText('1050');
   expect(await saved(page)).toEqual({
-    version: 1,
+    version: 2,
+    lastCompletedWager: 50,
     settledBankroll: 1050,
-    preferences: { selectedWager: 50, motion: 'reduced', audio: 'muted' },
+    preferences: {
+      selectedWager: 50,
+      motion: 'reduced',
+      audio: 'muted',
+      sameBet: false,
+    },
     roundPending: false,
   });
   await page.goto(appURL);

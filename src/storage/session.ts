@@ -11,22 +11,26 @@ export const MOTION_SETTINGS = ['system', 'reduced', 'full'] as const;
 export const AUDIO_SETTINGS = ['muted'] as const;
 export type Preferences = Readonly<{
   selectedWager: number;
+  sameBet: boolean;
   motion: (typeof MOTION_SETTINGS)[number];
   audio: (typeof AUDIO_SETTINGS)[number];
 }>;
-type RecordV1 = Readonly<{
-  version: 1;
+type SessionRecord = Readonly<{
+  version: 2;
+  lastCompletedWager: number | null;
   settledBankroll: number;
   preferences: Preferences;
   roundPending: boolean;
 }>;
 export type StorageBoundary = Pick<Storage, 'getItem' | 'setItem'>;
 
-const defaults = (): RecordV1 => ({
-  version: 1,
+const defaults = (): SessionRecord => ({
+  version: 2,
+  lastCompletedWager: null,
   settledBankroll: STARTING_BANKROLL,
   preferences: {
     selectedWager: WAGER_LIMITS.min,
+    sameBet: false,
     motion: 'system',
     audio: 'muted',
   },
@@ -55,20 +59,58 @@ function preferences(value: unknown): value is Preferences {
   return (
     object(value) &&
     sameKeys(value, defaults().preferences) &&
-    isValidWager(value.selectedWager) &&
+    (value.selectedWager === 0 || isValidWager(value.selectedWager)) &&
+    typeof value.sameBet === 'boolean' &&
     member(MOTION_SETTINGS, value.motion) &&
     member(AUDIO_SETTINGS, value.audio)
   );
 }
-function validRecord(value: unknown): value is RecordV1 {
-  return (
-    object(value) &&
-    sameKeys(value, defaults()) &&
-    value.version === 1 &&
-    bankroll(value.settledBankroll) &&
-    preferences(value.preferences) &&
-    typeof value.roundPending === 'boolean'
+function readRecord(value: unknown): SessionRecord | undefined {
+  if (!object(value) || !object(value.preferences)) return;
+  const legacy = value.version === 1;
+  if (!legacy && value.version !== 2) return;
+  const { sameBet, ...oldPreferences } = value.preferences;
+  const oldRecord = Object.fromEntries(
+    Object.entries(value).filter(([key]) => key !== 'lastCompletedWager'),
   );
+  const expected = {
+    version: 1,
+    settledBankroll: 0,
+    preferences: {},
+    roundPending: false,
+  };
+  if (
+    !sameKeys(legacy ? value : oldRecord, expected) ||
+    !sameKeys(legacy ? value.preferences : oldPreferences, {
+      selectedWager: 10,
+      motion: 'system',
+      audio: 'muted',
+    }) ||
+    !bankroll(value.settledBankroll) ||
+    typeof value.roundPending !== 'boolean' ||
+    (legacy && !isValidWager(oldPreferences.selectedWager))
+  )
+    return;
+  const lastCompletedWager =
+    !legacy && isValidWager(value.lastCompletedWager)
+      ? value.lastCompletedWager
+      : null;
+  const nextPreferences = { ...oldPreferences, sameBet: false };
+  if (!preferences(nextPreferences)) return;
+  return {
+    version: 2,
+    settledBankroll: value.settledBankroll,
+    roundPending: value.roundPending,
+    lastCompletedWager,
+    preferences: {
+      ...nextPreferences,
+      sameBet:
+        !legacy &&
+        sameBet === true &&
+        lastCompletedWager !== null &&
+        value.settledBankroll >= lastCompletedWager,
+    },
+  };
 }
 
 export function createSessionStorage(
@@ -112,8 +154,9 @@ export function createSessionStorage(
       } catch {
         parsed = undefined;
       }
-      if (validRecord(parsed)) {
-        record = parsed;
+      const restored = readRecord(parsed);
+      if (restored) {
+        record = restored;
       } else {
         storage = undefined;
         notices.push(
@@ -141,6 +184,7 @@ export function createSessionStorage(
         phase: 'BETTING' as const,
         settledBankroll: record.settledBankroll,
         preferences: { ...record.preferences },
+        lastCompletedWager: record.lastCompletedWager,
         dealWager: eligible >= WAGER_LIMITS.min ? eligible : null,
         reducedMotion:
           record.preferences.motion === 'system'
@@ -163,12 +207,26 @@ export function createSessionStorage(
         ...record,
         settledBankroll: balance,
         roundPending: false,
+        lastCompletedWager: state.wager,
+        preferences: {
+          ...record.preferences,
+          sameBet: record.preferences.sameBet && balance >= state.wager,
+          selectedWager:
+            balance < state.wager ? 0 : record.preferences.selectedWager,
+        },
       };
       persist();
       return true;
     },
-    updatePreferences(next: Preferences): boolean {
+    updatePreferences(changes: Partial<Preferences>): boolean {
+      const next = { ...record.preferences, ...changes };
       if (!preferences(next)) return false;
+      if (
+        next.sameBet &&
+        (record.lastCompletedWager === null ||
+          record.settledBankroll < record.lastCompletedWager)
+      )
+        return false;
       record = { ...record, preferences: { ...next } };
       persist();
       return true;

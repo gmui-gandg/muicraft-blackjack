@@ -259,6 +259,7 @@ test('denied writes stay playable and preferences never persist an in-round bala
   );
   expect(session.getSnapshot().saved.preferences).toEqual({
     selectedWager: 10,
+    sameBet: false,
     motion: 'reduced',
     audio: 'muted',
   });
